@@ -3,6 +3,3 @@
 
 Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 
-David
-
-Daniel's pretty cool
