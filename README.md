@@ -4,3 +4,4 @@
 Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 David is the best
 
+Daniel's pretty cool
