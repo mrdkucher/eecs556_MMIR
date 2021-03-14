@@ -3,6 +3,21 @@
 
 Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 
+### Running LC2 Code:
+1) First install deepreg locally. Ensure you're in dir 'DeepReg' and run:
+    ```bash
+    pip install -e . --no-cache-dir
+    ```
+2) Install Py-BOBYQA
+    ```bash
+    pip install Py-BOBYQA
+    ```
+3) Run LC2 with:
+    ```bash
+    python demos/lc2_paired_mrus_brain/register.py -f train/fixed_images/Case1.nii.gz -m train/moving_images/Case1.nii.gz -s 32 32 36
+    ```
+
+
 ### Git Steps:
 Setup:
 - `git clone https://github.com/mrdkucher/eecs556_MMIR.git`
