@@ -1,0 +1,39 @@
+dataset:
+  dir:
+    train: "demos/unpaired_mr_brain/dataset/train"
+    valid: "demos/unpaired_mr_brain/dataset/test"
+    test: "demos/unpaired_mr_brain/dataset/test"
+  format: "nifti"
+  type: "unpaired" # paired / unpaired / grouped
+  labeled: True
+  image_shape: [64, 64, 64]
+
+train:
+  method: "dvf" # the registration method, value should be ddf / dvf / conditional
+  backbone:
+    name: "unet" # value should be local / global / unet
+    num_channel_initial: 16
+    depth: 3
+    pooling: false
+    concat_skip: true
+  loss:
+    image:
+      name: "ssd"
+      weight: 1.0
+    label:
+      weight: 0.2
+      name: "dice"
+      scales: [0, 1, 2, 4, 8, 16]
+    regularization:
+      weight: 0.4
+      name: "gradient" # bending / gradient
+  preprocess:
+    data_augmentation:
+      name: "affine"
+    batch_size: 4
+    shuffle_buffer_num_batch: 1
+  optimizer:
+    name: "Adam"
+    learning_rate: 1.0e-5
+  epochs: 200
+  save_period: 2

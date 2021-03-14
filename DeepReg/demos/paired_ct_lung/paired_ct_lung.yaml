@@ -1,0 +1,37 @@
+dataset:
+  dir:
+    train: "demos/paired_ct_lung/dataset/train"
+    valid: "demos/paired_ct_lung/dataset/valid"
+    test: "demos/paired_ct_lung/dataset/test"
+  format: "nifti"
+  type: "paired" # paired / unpaired / grouped
+  labeled: true
+  moving_image_shape: [96, 96, 104]
+  fixed_image_shape: [96, 96, 104]
+train:
+  method: "ddf" # the registration method, value should be ddf / dvf / conditional
+  backbone:
+    name: "local" # value should be local / global / unet
+    num_channel_initial: 32 # number of initial channel in local net, controls the size of the network
+    extract_levels: [0, 1, 2]
+  loss:
+    image:
+      name: "ssd"
+      weight: 10.0
+    label:
+      weight: 1.0
+      name: "dice"
+      scales: [0, 1, 2, 4, 8, 16]
+    regularization:
+      weight: 10.0
+      name: "bending"
+  preprocess:
+    data_augmentation:
+      name: "affine"
+    batch_size: 4
+    shuffle_buffer_num_batch: 1
+  optimizer:
+    name: "Adam"
+    learning_rate: 1.0e-5
+  epochs: 8000
+  save_period: 1000

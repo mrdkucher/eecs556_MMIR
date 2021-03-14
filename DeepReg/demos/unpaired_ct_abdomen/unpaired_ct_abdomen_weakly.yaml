@@ -1,0 +1,39 @@
+dataset:
+  dir:
+    train: "demos/unpaired_ct_abdomen/dataset/train"
+    valid: "demos/unpaired_ct_abdomen/dataset/val"
+    test: "demos/unpaired_ct_abdomen/dataset/test"
+  format: "nifti"
+  type: "unpaired" # paired / unpaired / grouped
+  labeled: true
+  image_shape: [77, 64, 102] # original [192,160,256]
+
+train:
+  method: "ddf" # the registration method, value should be ddf / dvf / conditional
+  backbone:
+    name: "unet" # value should be local / global / unet
+    num_channel_initial: 16
+    depth: 3
+    pooling: true
+    concat_skip: true
+  loss:
+    image:
+      name: "ssd"
+      weight: 0
+    label:
+      weight: 1
+      name: "dice"
+      scales: [0, 1, 2, 4, 8, 16]
+    regularization:
+      weight: 0.5
+      name: "gradient"
+  preprocess:
+    data_augmentation:
+      name: "affine"
+    batch_size: 4
+    shuffle_buffer_num_batch: 1
+  optimizer:
+    name: "Adam"
+    learning_rate: 1.0e-4
+  epochs: 5000
+  save_period: 250

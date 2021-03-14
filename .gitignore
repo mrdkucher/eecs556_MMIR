@@ -1,4 +1,11 @@
+# MacOS garbage
 *.DS_Store
+
+# Python garbage
 **__pycache__**
+
+# ignore raw dataset
 RESECT
 
+# ignore dataset in demos
+**dataset**
