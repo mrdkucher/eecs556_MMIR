@@ -139,3 +139,33 @@ class TestGlobalNormalizedCrossCorrelation:
         expected = expected * tf.ones(shape=(shape[0],))
 
         assert is_equal_tf(got, expected)
+
+
+class TestLinearCorrelationOfLinearCombination:
+    @pytest.mark.parametrize(
+        "shape,y_pred_scale,expected",
+        [
+            ((1, 3, 3, 3), 0.5, 1.0)
+        ],
+    )
+    def test_result(self, shape, y_pred_scale, expected):
+        max_val = np.product(shape)
+        y_true = np.array(range(max_val), dtype=np.float32)
+        y_true = np.reshape(y_true, shape)
+        y_pred = y_true * y_pred_scale
+        expected = expected * np.ones(shape=(shape[0],))
+        LC2 = image.LinearCorrelationOfLinearCombination()
+        got = LC2.call(y_true, y_pred)
+
+        assert is_equal_tf(got, expected)
+
+    def test_get_config(self):
+        got = image.LinearCorrelationOfLinearCombination().get_config()
+        expected = dict(
+            neighborhood=False,
+            patch=True,
+            patch_size=3,
+            reduction=tf.keras.losses.Reduction.SUM,
+            name="LinearCorrelationOfLinearCombination",
+        )
+        assert got == expected
