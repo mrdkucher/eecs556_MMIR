@@ -350,7 +350,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         reduction: str = tf.keras.losses.Reduction.SUM,
         name: str = "LinearCorrelationOfLinearCombination",
         patch: bool = True,
-        patch_size: int = 5,
+        patch_size: int = 3,
         neighborhood: bool = False
     ):
         """
@@ -409,7 +409,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         '''
         Return Linear Correlation of Linear Combination (LC2)
         similarity measure for two input images.
-        :param y_true: one channel image of size (h, w, d, ch=1) (US)
+        :param y_true: one channel image of size (h, w, d) or (h, w, d, ch=1) (US)
         :param y_pred: multi-channel image of size (h, w, d, ch=2) (MRI)
             y_pred[:, :, :, 0] = image magnitude
             y_pred[:, :, :, 1] = image gradient
@@ -453,7 +453,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
 
         result = tf.concat([similarity, weight, measure], axis=0)
 
-        return (result, 0)  # return 0 so tf doesn't complain while we use map_fn in self.call()
+        return result
 
     def gradient_mag(self, image: tf.Tensor) -> tf.Tensor:
         """
@@ -491,7 +491,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
 
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
         """
-        Return loss for a batch.
+        Return loss for a batch. batch must be 1.
 
         :param y_true: Fixed image = US
             shape = (batch, dim1, dim2, dim3)
@@ -510,14 +510,32 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         y_pred_mag = self.gradient_mag(y_pred)
         y_pred_cat = tf.concat([y_pred, y_pred_mag], 4)
 
-        lc2_result, _ = tf.map_fn(lambda inp: self.lc2Similarity(inp[0], inp[1]), (y_true, y_pred_cat))
-        measure = lc2_result[:, 2]  # (batch,)
-        return measure
+        if self.patch:
+            sizes = [1, self.patch_size, self.patch_size, self.patch_size, 1]
+            strides = [1, 1, 1, 1, 1]
+            padding = 'SAME'  # zero pads. LC2 doesn't consider 0 values, so no artifacts.
+            y_true_patches = tf.extract_volume_patches(y_true, sizes, strides, padding)
+            y_pred_patches = tf.extract_volume_patches(y_pred_cat, sizes, strides, padding)
+
+            # patches come interlaced by channel: image mag, grad mag, etc.
+            num_patches = y_true_patches.shape[4]
+            lc2_result = tf.zeros([num_patches, 3])  # create array for return values
+            for i, patch in enumerate(tf.unstack(y_true_patches, axis=4)):
+                lc2_res_i = self.lc2Similarity(y_true_patches[0, :, :, :, i], y_pred_patches[0, :, :, :, 2 * i:(2 * i) + 2])
+                lc2_result = tf.tensor_scatter_nd_update(lc2_result, [[i]], [lc2_res_i])
+            similarity = tf.reduce_sum(lc2_result[:, 2]) / tf.reduce_sum(lc2_result[:, 1])
+            similarity = tf.expand_dims(similarity, axis=0)
+        else:
+            lc2_result = self.lc2Similarity(y_true, y_pred_cat)
+            similarity = lc2_result[:, 0]  # (batch,)
+        return similarity
 
     def get_config(self) -> dict:
         """Return the config dictionary for recreating this class."""
         config = super().get_config()
         config["neighborhood"] = self.neighborhood
+        config["patch"] = self.patch
+        config["patch_size"] = self.patch_size
         return config
 
 
