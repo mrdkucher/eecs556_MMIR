@@ -16,8 +16,13 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     ```bash
     python demos/lc2_paired_mrus_brain/register.py -f train/fixed_images/Case1.nii.gz -m train/moving_images/Case1.nii.gz -s 32 32 36
     ```
+### Python script for quickly separating the .tag file into a .txt
 
-
+# Running
+    ```bash
+    python landmarks_split_txt.py --inputtag *folder*/Case1-MRI-beforeUS.tag --savetxt Case1_lm
+    ```
+    
 ### Git Steps:
 Setup:
 - `git clone https://github.com/mrdkucher/eecs556_MMIR.git`
