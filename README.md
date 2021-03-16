@@ -22,6 +22,11 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     ```bash
     python landmarks_split_txt.py --inputtag *folder*/Case1-MRI-beforeUS.tag --savetxt Case1_lm
     ```
+    If it's helpful for your framework, you can then run:
+    ```bash
+    c3d Case1-MRI_in_US.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 1-o Case1-MRI-landmarks.nii.gz
+    ```
+    ^ Running c3d with that command will create a new .nii.gz with voxel spheres representing the landmarks. You can then apply your transformation to that file directly.
     
 ### Git Steps:
 Setup:
