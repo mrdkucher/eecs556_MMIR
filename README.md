@@ -20,7 +20,17 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 
     ```bash
     python landmarks_split_txt.py --inputtag *folder*/Case1-MRI-beforeUS.tag --savetxt Case1_lm
+
     ```
+To get the MRI resliced into the US img coordinate system, run:
+    ```bash
+c3d Case1-US-before.nii.gz Case1-FLAIR.nii.gz
+    -reslice-identity -resample-mm 0.5x0.5x0.5mm -o Case1-MRI_in_US.nii.gz
+    ```
+To get the US resliced to the finer 0.5 mm resolution, run:
+   ```bash
+c3d Case1-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o Case1-US.nii.gz
+   ```
     If it's helpful for your framework, you can then run:
     ```bash
     c3d Case1-MRI_in_US.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 1-o Case1-MRI-landmarks.nii.gz
