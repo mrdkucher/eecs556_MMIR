@@ -30,7 +30,7 @@ Running c3d with that command will create a new .nii.gz with voxel spheres repre
 ### Python script for finding the coordinates of the spheres from the COM
 
    ```bash
-   python landmarks_centre_mass.py --inputnii Case1-MRI-landmarks.nii.gz --movingnii Case1-deformed_seg.nii.gz --savetxt Case1-results
+   python landmarks_centre_mass.py --inputnii Case1-MRI-landmarks.nii.gz --movingnii Case1-MRI-deformed_landmarks.nii.gz --savetxt Case1-results
    ```
 
 ### Git Steps:
