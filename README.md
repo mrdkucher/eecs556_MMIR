@@ -18,7 +18,6 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     ```
 ### Python script for quickly separating the .tag file into a .txt
 
-# Running
     ```bash
     python landmarks_split_txt.py --inputtag *folder*/Case1-MRI-beforeUS.tag --savetxt Case1_lm
     ```
@@ -26,8 +25,14 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     ```bash
     c3d Case1-MRI_in_US.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 1-o Case1-MRI-landmarks.nii.gz
     ```
-    ^ Running c3d with that command will create a new .nii.gz with voxel spheres representing the landmarks. You can then apply your transformation to that file directly.
+Running c3d with that command will create a new .nii.gz with voxel spheres representing the landmarks. You can then apply your transformation to that file directly.
     
+### Python script for finding the coordinates of the spheres from the COM
+
+   ```bash
+   python landmarks_centre_mass.py --inputnii Case1-MRI-landmarks.nii.gz --movingnii Case1-deformed_seg.nii.gz --savetxt Case1-results
+   ```
+
 ### Git Steps:
 Setup:
 - `git clone https://github.com/mrdkucher/eecs556_MMIR.git`
