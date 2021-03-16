@@ -6,16 +6,38 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 ### Running LC2 Code:
 1) First install deepreg locally. Ensure you're in dir 'DeepReg' and run:
     ```bash
+    cd DeepReg
     pip install -e . --no-cache-dir
     ```
 2) Install Py-BOBYQA
     ```bash
     pip install Py-BOBYQA
     ```
-3) Run LC2 with:
+3) Prepare dataset with landmarks
     ```bash
-    python demos/lc2_paired_mrus_brain/register.py -f train/fixed_images/Case1.nii.gz -m train/moving_images/Case1.nii.gz -s 32 32 36
+    c3d ../RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz ../RESECT/NIFTI/Case1/MRI/Case1-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o demos/lc2_paired_mrus_brain/Case1-MRI_in_US-rs.nii.gz
+
+    c3d ../RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o demos/lc2_paired_mrus_brain/Case1-US-rs.nii.gz
+
+    python ../landmarks_split_txt.py --inputtag ../RESECT/NIFTI/Case1/landmarks/Case1-MRI-beforeUS.tag --savetxt demos/lc2_paired_mrus_brain/Case1_lm
+
+    cd demos/lc2_paired_mrus_brain/
+
+    c3d Case1-MRI_in_US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 1-o Case1-MRI-landmarks-rs.nii.gz
+
+    c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 1-o Case1-US-landmarks-rs.nii.gz
+
+    cd ../..
     ```
+4) Run LC2 with:
+    ```bash
+    python demos/lc2_paired_mrus_brain/register.py -f Case1-US-rs.nii.gz -m Case1-MRI_in_US-rs.nii.gz -lf Case1-US-landmarks-rs.nii.gz -lm Case1-MRI-landmarks-rs.nii.gz -s 70 70 70 --verbose_bobyqa --max_iter 2000
+    ```
+5) Extract Landmarks coords from warped moving landmarks (not working)
+    ```bash
+    python ../landmarks_centre_mass.py --inputnii demos/lc2_paired_mrus_brain/logs_reg/moving_landmarks.nii.gz --movingnii demos/lc2_paired_mrus_brain/logs_reg/warped_moving_landmarks.nii.gz --savetxt demos/lc2_paired_mrus_brain/logs_reg/Case1-results
+    ```
+
 ### Python script for quickly separating the .tag file into a .txt
 
     ```bash

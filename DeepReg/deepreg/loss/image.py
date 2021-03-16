@@ -419,6 +419,8 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
 
         # Define similarity value
         similarity = -1
+        weight = 0
+        measure = 0
 
         y_true = tf.reshape(y_true, [-1])
         # y_pred_orig = y_pred
