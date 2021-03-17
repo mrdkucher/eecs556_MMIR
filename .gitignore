@@ -3,7 +3,7 @@
 
 # Python garbage
 **__pycache__**
-
+*.ibynb_checkpoints
 # ignore raw dataset
 RESECT
 
