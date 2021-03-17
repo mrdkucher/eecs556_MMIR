@@ -4,6 +4,7 @@ Affine iterative pairwise registration via LC2
 import argparse
 import os
 import shutil
+import sys
 
 import tensorflow as tf
 
@@ -72,10 +73,19 @@ parser.add_argument(
     action="store_true",
     default=False
 )
+parser.add_argument(
+    "-g", "--seek_global_minimum",
+    help="enable seek global minimum option for bobyqa solver",
+    dest="seek_global_minimum",
+    action="store_true",
+    default=False
+)
 args = parser.parse_args()
 
 MAIN_PATH = os.getcwd()
-PROJECT_DIR = "demos/lc2_paired_mrus_brain"
+PROJECT_DIR = sys.argv[0].split('register.py')[0]
+if PROJECT_DIR == "":
+    PROJECT_DIR = "./"
 os.chdir(PROJECT_DIR)
 
 MOVING_PATH = args.moving
@@ -93,10 +103,10 @@ if not os.path.exists(MOVING_PATH):
     raise FileNotFoundError(f"Moving image not found at: {MOVING_PATH}")
 if not os.path.exists(FIXED_PATH):
     raise FileNotFoundError(f"Fixed image not found at: {FIXED_PATH}")
-if not os.path.exists(MOVING_LM_PATH):
+if not MOVING_LM_PATH or not os.path.exists(MOVING_LM_PATH):
     print(f"Moving landmarks not found at: {MOVING_LM_PATH}, not warping landmarks")
     use_landmarks = False
-if not os.path.exists(FIXED_LM_PATH):
+if not FIXED_LM_PATH or not os.path.exists(FIXED_LM_PATH):
     print(f"Fixed landmarks not found at: {FIXED_LM_PATH}, not warping landmarks")
     use_landmarks = False
 
@@ -123,7 +133,8 @@ def load_preprocess_image(file_path, normalize=True, fixed=False):
 
     if normalize and not args.no_normalize:
         # normalize to [0, 1]
-        image = (image - tf.reduce_min(image)) / (tf.reduce_max(image) - tf.reduce_min(image))
+        image = (image - tf.reduce_min(image)) / \
+            (tf.reduce_max(image) - tf.reduce_min(image))
         if fixed:
             image = image + 1e-10  # add constant so it's not all 0s
 
@@ -132,7 +143,8 @@ def load_preprocess_image(file_path, normalize=True, fixed=False):
 
 # load and preprocess fixed and moving images
 moving_image = load_preprocess_image(MOVING_PATH, normalize=True)  # normalized
-fixed_image = load_preprocess_image(FIXED_PATH, normalize=True, fixed=True)  # normalized
+fixed_image = load_preprocess_image(
+    FIXED_PATH, normalize=True, fixed=True)  # normalized
 
 # load and prepreprocess fixed and moving landmarks (images)
 if use_landmarks:
@@ -159,6 +171,7 @@ print("    min:", tf.reduce_min(moving_image))
 print("    max:", tf.reduce_max(moving_image))
 print("max iterations:", args.max_iter)
 print("normalize inputs:", not args.no_normalize)
+print("seek global minimum:", args.seek_global_minimum)
 
 
 # BOBYQA optimization:
@@ -200,10 +213,25 @@ def build_objective_function(grid, mov, fix) -> object:
 
 
 # affine transformation as trainable weights
-var_affine = np.array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32)
-
+var_affine = np.array(
+    [0.0, 1.0, 0.0,
+     -1.0, 0.0, 0.0,
+     0.0, 0.0, 1.0,
+     0.0, 0.0, 0.0], dtype=np.float32)
+lower = np.array(
+    [-10.0, -10.0, -10.0,
+     -10.0, -10.0, -10.0,
+     -10.0, -10.0, -10.0,
+     -100.0, -100.0, -100.0], dtype=np.float32)
+upper = np.array(
+    [10.0, 10.0, 10.0,
+     10.0, 10.0, 10.0,
+     10.0, 10.0, 10.0,
+     100.0, 100.0, 100.0])
 obj_fn = build_objective_function(grid_ref, moving_image, fixed_image)
-soln = pybobyqa.solve(obj_fn, var_affine, print_progress=args.v_bobyqa, maxfun=args.max_iter)
+soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=1,
+                      print_progress=args.v_bobyqa, maxfun=args.max_iter,
+                      seek_global_minimum=args.seek_global_minimum)
 print(soln)
 
 var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)

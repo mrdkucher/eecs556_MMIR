@@ -1,8 +1,9 @@
-## EECS 556 Final Project:
+# EECS 556 Final Project:
 ### Multimodal Image Registration: Comparison of Methods for 3D MRI to 3D Ultrasound Image Registration with Classical and Deep-Learning Accelerated Approaches
 
 Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 
+## LC2
 ### Running LC2 Code:
 1) First install deepreg locally. Ensure you're in dir 'DeepReg' and run:
     ```bash
@@ -38,6 +39,15 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     python ../landmarks_centre_mass.py --inputnii demos/lc2_paired_mrus_brain/logs_reg/moving_landmarks.nii.gz --movingnii demos/lc2_paired_mrus_brain/logs_reg/warped_moving_landmarks.nii.gz --savetxt demos/lc2_paired_mrus_brain/logs_reg/Case1-results
     ```
 
+### Debugging LC2
+1) Run LC2 on phantom images (extruded in 3d)
+    ```bash
+    cd DeepReg/demos/lc2_paired_mrus_brain
+    python register.py -f phantom.nii.gz -m phantom_rot.nii.gz --verbose_bobyqa --max_iter 10000 -s 64 64 21 -g
+    ```
+2) Output is in logs_reg
+
+## c3d utility
 ### Python script for quickly separating the .tag file into a .txt
 
     ```bash
