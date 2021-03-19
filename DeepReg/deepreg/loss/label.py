@@ -148,19 +148,19 @@ class DiceScore(MultiScaleLoss):
         :param y_pred: shape = (batch, ...)
         :return: shape = (batch,)
         """
-        if self.binary:
-            y_true = tf.cast(y_true >= 0.5, dtype=y_true.dtype)
-            y_pred = tf.cast(y_pred >= 0.5, dtype=y_pred.dtype)
-
-        # (batch, ...) -> (batch, d)
         y_true = tf.keras.layers.Flatten()(y_true)
         y_pred = tf.keras.layers.Flatten()(y_pred)
-
-        y_prod = tf.reduce_mean(y_true * y_pred, axis=1)
-        y_sum = tf.reduce_mean(y_true, axis=1) + tf.reduce_mean(y_pred, axis=1)
-
+        
+        y_intersection = y_true / (y_pred+EPS) 
+        y_prod = tf.reduce_mean(tf.cast((y_intersection > 0.99) & (y_intersection < 1.01),
+                                        dtype=y_true.dtype), axis=1)
+        
+        y_sum = tf.reduce_mean(tf.cast(y_true > EPS, dtype=y_true.dtype), axis=1
+                              ) + tf.reduce_mean(tf.cast(y_pred > EPS, dtype=y_pred.dtype), axis=1)
+        
         numerator = 2 * (y_prod - self.neg_weight * y_sum + self.neg_weight)
         denominator = (1 - 2 * self.neg_weight) * y_sum + 2 * self.neg_weight
+        
         return (numerator + EPS) / (denominator + EPS)
 
     def get_config(self) -> dict:
