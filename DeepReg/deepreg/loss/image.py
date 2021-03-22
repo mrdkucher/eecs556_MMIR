@@ -342,7 +342,9 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
 
     y_true and y_pred have to be at least 4d tensor, including batch axis.
 
-    Reference: TODO
+    Reference:
+    - Paper: https://doi.org/10.1016/j.media.2014.04.008
+    - Code: http://campar.in.tum.de/Main/LC2Code (matlab)
     """
 
     def __init__(
@@ -350,7 +352,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         reduction: str = tf.keras.losses.Reduction.SUM,
         name: str = "LinearCorrelationOfLinearCombination",
         patch: bool = True,
-        patch_size: int = 3,
+        patch_size: int = 7,
         neighborhood: bool = False
     ):
         """
@@ -359,6 +361,8 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         :param reduction: using SUM reduction over batch axis,
             calling the loss like `loss(y_true, y_pred)` will return a scalar tensor.
         :param name: name of the loss
+        :param patch: whether to use patches (bool)
+        :param patch_size: default patch size [7 from authors] (int)
         :param neighborhood: use avg neighborhood value for fitting LC2
         """
         self.neighborhood = neighborhood
