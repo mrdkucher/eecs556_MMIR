@@ -148,19 +148,23 @@ class DiceScore(MultiScaleLoss):
         :param y_pred: shape = (batch, ...)
         :return: shape = (batch,)
         """
+        if self.binary:
+            y_true = tf.cast(y_true >= 0.5, dtype=y_true.dtype)
+            y_pred = tf.cast(y_pred >= 0.5, dtype=y_pred.dtype)
+
+        # (batch, ...) -> (batch, d)
         y_true = tf.keras.layers.Flatten()(y_true)
         y_pred = tf.keras.layers.Flatten()(y_pred)
-        
-        y_intersection = y_true / (y_pred+EPS) 
-        y_prod = tf.reduce_mean(tf.cast((y_intersection > 0.99) & (y_intersection < 1.01),
-                                        dtype=y_true.dtype), axis=1)
-        
-        y_sum = tf.reduce_mean(tf.cast(y_true > EPS, dtype=y_true.dtype), axis=1
-                              ) + tf.reduce_mean(tf.cast(y_pred > EPS, dtype=y_pred.dtype), axis=1)
-        
-        numerator = 2 * (y_prod - self.neg_weight * y_sum + self.neg_weight)
-        denominator = (1 - 2 * self.neg_weight) * y_sum + 2 * self.neg_weight
-        
+
+        y_prod = tf.reduce_mean(y_true * y_pred, axis=1)
+        y_sum = tf.reduce_mean(y_true, axis=1) + tf.reduce_mean(y_pred, axis=1)
+
+        numerator = 2 * (
+            y_prod - self.neg_weight * y_sum + self.neg_weight
+        )
+        denominator = (
+            1 - 2 * self.neg_weight
+        ) * y_sum + 2 * self.neg_weight
         return (numerator + EPS) / (denominator + EPS)
 
     def get_config(self) -> dict:
@@ -301,6 +305,75 @@ class JaccardIndex(MultiScaleLoss):
 class JaccardLoss(NegativeLossMixin, JaccardIndex):
     """Revert the sign of JaccardIndex."""
 
+class L2_Distance(MultiScaleLoss):
+    def __init__(
+        self,
+        scales: Optional[List] = None,
+        kernel: str = "gaussian",
+        reduction: str = tf.keras.losses.Reduction.SUM,
+        name: str = "L2_Distance",
+    ):
+        super().__init__(scales=scales, kernel=kernel, reduction=reduction, name=name)
+   
+        
+    def l2(self, true_mask: tf.Tensor, pred_mask: tf.Tensor) -> tf.Tensor:
+        numerator1 = tf.expand_dims(tf.range(1, true_mask.shape[1]+1, 1, dtype=tf.float32),axis=1)
+        numerator2 = tf.expand_dims(tf.range(1, true_mask.shape[2]+1, 1, dtype=tf.float32),axis=1)
+        numerator3 = tf.expand_dims(tf.range(1, true_mask.shape[3]+1, 1, dtype=tf.float32),axis=1)
+        
+        denominator1 = tf.expand_dims(tf.ones(true_mask.shape[1], dtype=tf.float32),axis=1)
+        denominator2 = tf.expand_dims(tf.ones(true_mask.shape[2], dtype=tf.float32),axis=1)
+        denominator3 = tf.expand_dims(tf.ones(true_mask.shape[3], dtype=tf.float32),axis=1)
+        
+        true1 = (tf.reduce_sum(tf.transpose(true_mask, perm=[0,3,2,1])@numerator1,axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(tf.transpose(true_mask, perm=[0,3,2,1])@denominator1, axis = [1,2,3]) + EPS)
+        true2 = (tf.reduce_sum(tf.transpose(true_mask, perm=[0,1,3,2])@numerator2, axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(tf.transpose(true_mask, perm=[0,1,3,2])@denominator2, axis = [1,2,3]) + EPS)
+        true3 = (tf.reduce_sum(true_mask@numerator3, axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(true_mask@denominator3, axis = [1,2,3]) + EPS)
+        
+        pred1 = (tf.reduce_sum(tf.transpose(pred_mask, perm=[0,3,2,1])@numerator1,axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(tf.transpose(pred_mask, perm=[0,3,2,1])@denominator1, axis = [1,2,3]) + EPS)
+        pred2 = (tf.reduce_sum(tf.transpose(pred_mask, perm=[0,1,3,2])@numerator2, axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(tf.transpose(pred_mask, perm=[0,1,3,2])@denominator2, axis = [1,2,3]) + EPS)
+        pred3 = (tf.reduce_sum(pred_mask@numerator3, axis = [1,2,3]) + EPS) / (
+            tf.reduce_sum(pred_mask@denominator3, axis = [1,2,3]) + EPS)
+        
+        return tf.sqrt((pred1 - true1)**2 + (pred2 - true2)**2 + (pred3 - true3)**2)
+    
+    
+    def _call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Return L2 loss for a batch.
+
+        :param y_true: shape = (batch, ...)
+        :param y_pred: shape = (batch, ...)
+        :return: shape = (batch,)
+        """
+        #true_mask = tf.cast(y_true > 0.5, dtype=tf.float32)
+        #pred_mask = tf.cast(y_pred > 0.5, dtype=tf.float32)
+        
+        """
+        loss = tf.zeros(y_true.shape[0])   
+        # Hard code number of possible masks = 20...not a good plan but not sure what else to do
+        for i in range(20):
+            loss += self.l2(tf.cast((y_true > 1/(i+2)) & (y_true <= 1/(i+1)), dtype=tf.float32), 
+                            tf.cast((y_pred > 1/(i+2)) & (y_pred <= 1/(i+1)), dtype=tf.float32))
+        """
+        
+        return self.l2(y_true, y_pred)
+
+    def get_config(self) -> dict:
+        """Return the config dictionary for recreating this class."""
+        config = super().get_config()
+        return config
+    
+
+@REGISTRY.register_loss(name="L2")
+class L2_Loss(L2_Distance):
+    """Returns the L2 loss of the centroids of segmented regions"""
+          
+    
 
 def compute_centroid(mask: tf.Tensor, grid: tf.Tensor) -> tf.Tensor:
     """
