@@ -3,42 +3,62 @@
 
 Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
 
+## Data Preparation
+### Automated:
+1) Download [RESECT Dataset](https://archive.norstore.no/pages/public/datasetDetail.jsf?id=10.11582/2017.00004) and place next to preprocessRESECT.sh.
+2) Run preprocessing via ```./preprocessRESECT.sh``` to:
+    - Resample US to 0.5mmx0.5mmx0.5mm
+    - Reslice, resample, and transform MRI to be in same coordinates as US
+    - Read landmark files, and create voxelized landmarks for US and MRI images with value == landmark ID
+3) Data is split into train, validation, and test sets, with fixed/moving images, labels (voxelized landmarks), and landmarks (pts).
+
+### Manually, taking case 1 as an example:
+1) Reslice and resample MRI to 0.5x0.5x0.5mm and to US coordinates
+```
+bash c3d RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz RESECT/NIFTI/Case1/MRI/Case1-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o Case1-MRI_in_US-rs.nii.gz
+```
+
+2) Resample US to 0.5x0.5x0.5mm
+```bash
+c3d RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o Case1-US-rs.nii.gz
+```
+
+3) Extract landmarks to txt files
+```bash
+python landmarks_split_txt.py --inputtag RESECT/NIFTI/Case1/Landmarks/Case1-MRI-beforeUS.tag --savetxt Case1_lm
+```
+
+4) Create voxelized landmarks as labels for MRI
+```bash 
+c3d Case1-MRI_in_US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 2 -o Case1-MRI-landmarks-rs.nii.gz
+```
+
+5) Create voxelized landmarks as labels for US
+```bash
+c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 2 -o Case1-US-landmarks-rs.nii.gz
+```
+
 ## LC2
 ### Running LC2 Code:
-1) First install deepreg locally.
+1) Make sure DeepReg is installed locally:
     ```bash
     cd DeepReg
     pip install -e . --no-cache-dir
     cd ..
     ```
-2) Install Py-BOBYQA
+2) Install Py-BOBYQA:
     ```bash
     pip install Py-BOBYQA
     ```
-3) Prepare dataset with landmarks
-    ```bash
-    c3d RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz RESECT/NIFTI/Case1/MRI/Case1-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o lc2_paired_mrus_brain/Case1-MRI_in_US-rs.nii.gz
-
-    c3d RESECT/NIFTI/Case1/US/Case1-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o lc2_paired_mrus_brain/Case1-US-rs.nii.gz
-
-    python landmarks_split_txt.py --inputtag RESECT/NIFTI/Case1/landmarks/Case1-MRI-beforeUS.tag --savetxt lc2_paired_mrus_brain/Case1_lm
-
-    cd lc2_paired_mrus_brain/
-
-    c3d Case1-MRI_in_US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_mri.txt 2 -o Case1-MRI-landmarks-rs.nii.gz
-
-    c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 2 -o Case1-US-landmarks-rs.nii.gz
-
-    cd ..
-    ```
+3) Ensure Dataset is prepared as described above
 4) Run LC2 with:
     ```bash
-    python lc2_paired_mrus_brain/register.py -f Case1-US-rs.nii.gz -m Case1-MRI_in_US-rs.nii.gz -lf Case1-US-landmarks-rs.nii.gz -lm Case1-MRI-landmarks-rs.nii.gz -s 70 70 70 --verbose_bobyqa --max_iter 2000
+    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose_bobyqa -g --max_iter 2000
     ```
-5) Extract Landmarks coords from warped moving landmarks
-    ```bash
-    python landmarks_centre_mass.py --inputnii lc2_paired_mrus_brain/logs_reg/moving_landmarks.nii.gz --movingnii lc2_paired_mrus_brain/logs_reg/warped_moving_landmarks.nii.gz --savetxt lc2_paired_mrus_brain/logs_reg/Case1-results
-    ```
+5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
+    - Fixed and moving images, labels, and warped moving images and labels.
+    - The affine transformation applied to the moving image to warp it
+    - PNG slices of each volume
 
 ### Debugging LC2
 1) Run LC2 on phantom images (extruded in 3d)
