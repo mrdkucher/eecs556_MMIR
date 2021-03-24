@@ -22,13 +22,15 @@ parser.add_argument(
     "-m", "--moving",
     help="File path to moving image",
     dest="moving",
-    action="store"
+    action="store",
+    required=True
 )
 parser.add_argument(
     "-f", "--fixed",
     help="File path to fixed image",
     dest="fixed",
-    action="store"
+    action="store",
+    required=True
 )
 parser.add_argument(
     "-t", "--tag",
@@ -78,6 +80,13 @@ parser.add_argument(
     dest="seek_global_minimum",
     action="store_true",
     default=False
+)
+parser.add_argument(
+    "-o", "--output",
+    help="Output directory (defaults to logs_reg)",
+    dest="output",
+    action="store",
+    default="logs_reg"
 )
 args = parser.parse_args()
 
@@ -212,35 +221,35 @@ if use_tags:
     num_lms = moving_landmarks.shape[0]
     bias = np.ones((num_lms, 1))
     # Landmark - based:
-    # Landmarks -> [inverse moving_image affine] -> landmarks in pixels -> [affine xform] -> warped landmarks in pixels -> [fixed_image affine] -> warped moving landmarks
+    # Landmarks -> [inverse moving_image affine] -> landmarks in voxels -> [affine xform] -> warped landmarks in voxels -> [fixed_image affine] -> warped moving landmarks
     # convert to homogeneous coordinates
     mov_hlms = np.concatenate((moving_landmarks, bias), axis=1)
     # convert to pixel values from world coords
-    mov_hpix = mov_hlms @ np.linalg.inv(moving_image_aff).T
+    mov_hvox = mov_hlms @ np.linalg.inv(moving_image_aff).T
     # perform transformation
     aff_xform = var_affine.numpy().squeeze()
-    warped_moving_pixels = mov_hpix @ aff_xform
+    warped_moving_voxels = mov_hvox @ aff_xform
     # transform back to world coords
-    warped_moving_pixels_world = np.concatenate((warped_moving_pixels, bias), axis=1) @ fixed_image_aff.T
-    warped_moving_pixels_world = warped_moving_pixels_world[:, :3]
-    mTRE1 = calculate_mTRE(fixed_landmarks, warped_moving_pixels_world)
+    warped_moving_landmarks = np.concatenate((warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
+    warped_moving_landmarks = warped_moving_landmarks[:, :3]
+    mTRE1 = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
     print("landmark mTRE:", mTRE1)
 
     # Sphere - based:
     # Extract warped centroids, extract fixed centroids, convert to world coords
-    warped_moving_lm_centroid_pixels = extract_centroid(warped_moving_lm_img)
-    warped_moving_lm_centroids = np.concatenate((warped_moving_lm_centroid_pixels, bias), axis=1) @ fixed_image_aff.T
+    warped_moving_lm_centroid_voxels = extract_centroid(warped_moving_lm_img)
+    warped_moving_lm_centroids = np.concatenate((warped_moving_lm_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
     warped_moving_lm_centroids = warped_moving_lm_centroids[:, :3]
-    fixed_lm_centroid_pixels = extract_centroid(fixed_lm_img)
-    fixed_lm_centroids = np.concatenate((fixed_lm_centroid_pixels, bias), axis=1) @ fixed_image_aff.T
+    fixed_lm_centroid_voxels = extract_centroid(fixed_lm_img)
+    fixed_lm_centroids = np.concatenate((fixed_lm_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
     fixed_lm_centroids = fixed_lm_centroids[:, :3]
-    # pixel_mTRE = calculate_mTRE(fixed_lm_centroid_pixels, warped_moving_lm_centroid_pixels)
-    # print("pixel mTRE:", pixel_mTRE)
+    voxel_mTRE = calculate_mTRE(fixed_lm_centroid_voxels, fixed_lm_centroid_voxels)
+    print("voxel mTRE:", voxel_mTRE)
     mTRE4 = calculate_mTRE(fixed_lm_centroids, warped_moving_lm_centroids)
     print("sphere mTRE:", mTRE4)
 
 # save output to files
-SAVE_PATH = "logs_reg"
+SAVE_PATH = args.output
 if os.path.exists(SAVE_PATH):
     shutil.rmtree(SAVE_PATH)
 os.mkdir(SAVE_PATH)
