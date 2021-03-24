@@ -349,18 +349,7 @@ class L2_Distance(MultiScaleLoss):
         :param y_true: shape = (batch, ...)
         :param y_pred: shape = (batch, ...)
         :return: shape = (batch,)
-        """
-        #true_mask = tf.cast(y_true > 0.5, dtype=tf.float32)
-        #pred_mask = tf.cast(y_pred > 0.5, dtype=tf.float32)
-        
-        """
-        loss = tf.zeros(y_true.shape[0])   
-        # Hard code number of possible masks = 20...not a good plan but not sure what else to do
-        for i in range(20):
-            loss += self.l2(tf.cast((y_true > 1/(i+2)) & (y_true <= 1/(i+1)), dtype=tf.float32), 
-                            tf.cast((y_pred > 1/(i+2)) & (y_pred <= 1/(i+1)), dtype=tf.float32))
-        """
-        
+        """        
         return self.l2(y_true, y_pred)
 
     def get_config(self) -> dict:
