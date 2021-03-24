@@ -30,8 +30,8 @@ for i in "${train_cases[@]}"; do
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz RESECT/NIFTI/Case$i/MRI/Case$i-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/train/moving_images/Case$i.nii.gz
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/train/fixed_images/Case$i.nii.gz
         python landmarks_split_txt.py --inputtag RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag --savetxt lm
-        c3d RESECT/preprocessed/train/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 2 -o RESECT/preprocessed/train/moving_labels/Case$i.nii.gz
-        c3d RESECT/preprocessed/train/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 2 -o RESECT/preprocessed/train/fixed_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/train/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 1.25 -o RESECT/preprocessed/train/moving_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/train/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 1.25 -o RESECT/preprocessed/train/fixed_labels/Case$i.nii.gz
         cp RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag  RESECT/preprocessed/train/landmarks/Case$i-MRI-beforeUS.tag
         # Cleanup
         rm lm_mri.txt lm_us.txt
@@ -46,8 +46,8 @@ for i in "${val_cases[@]}"; do
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz RESECT/NIFTI/Case$i/MRI/Case$i-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/valid/moving_images/Case$i.nii.gz
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/valid/fixed_images/Case$i.nii.gz
         python landmarks_split_txt.py --inputtag RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag --savetxt lm
-        c3d RESECT/preprocessed/valid/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 2 -o RESECT/preprocessed/valid/moving_labels/Case$i.nii.gz
-        c3d RESECT/preprocessed/valid/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 2 -o RESECT/preprocessed/valid/fixed_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/valid/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 1.25 -o RESECT/preprocessed/valid/moving_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/valid/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 1.25 -o RESECT/preprocessed/valid/fixed_labels/Case$i.nii.gz
         cp RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag  RESECT/preprocessed/valid/landmarks/
         # Cleanup
         rm lm_mri.txt lm_us.txt
@@ -62,8 +62,8 @@ for i in "${test_cases[@]}"; do
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz RESECT/NIFTI/Case$i/MRI/Case$i-T1.nii.gz -reslice-identity -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/test/moving_images/Case$i.nii.gz
         c3d RESECT/NIFTI/Case$i/US/Case$i-US-before.nii.gz -resample-mm 0.5x0.5x0.5mm -o RESECT/preprocessed/test/fixed_images/Case$i.nii.gz
         python landmarks_split_txt.py --inputtag RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag --savetxt lm
-        c3d RESECT/preprocessed/test/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 2 -o RESECT/preprocessed/test/moving_labels/Case$i.nii.gz
-        c3d RESECT/preprocessed/test/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 2 -o RESECT/preprocessed/test/fixed_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/test/moving_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_mri.txt 1.25 -o RESECT/preprocessed/test/moving_labels/Case$i.nii.gz
+        c3d RESECT/preprocessed/test/fixed_images/Case$i.nii.gz -scale 0 -landmarks-to-spheres lm_us.txt 1.25 -o RESECT/preprocessed/test/fixed_labels/Case$i.nii.gz
         cp RESECT/NIFTI/Case$i/Landmarks/Case$i-MRI-beforeUS.tag  RESECT/preprocessed/test/landmarks/
         # Cleanup
         rm lm_mri.txt lm_us.txt
