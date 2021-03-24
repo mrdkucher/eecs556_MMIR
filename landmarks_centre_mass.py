@@ -52,10 +52,10 @@ def main():
         
     with open(d_options['savetxt']+"_mri.txt", "w") as text_file:
         for i in range(positions.shape[0]):
-            text_file.write("%f %f %f %d \n" % (positions[i,0],positions[i,1],positions[i,2],i))   
+            text_file.write("%f %f %f %d \n" % (positions[i,0],positions[i,1],positions[i,2],i + 1))   
     with open(d_options['savetxt']+"_us.txt", "w") as text_file:
         for i in range(positions2.shape[0]):
-            text_file.write("%f %f %f %d \n" % (positions2[i,0],positions2[i,1],positions2[i,2],i)) 
+            text_file.write("%f %f %f %d \n" % (positions2[i,0],positions2[i,1],positions2[i,2],i+1)) 
     
 
 if __name__ == '__main__':

@@ -17,7 +17,6 @@ def main(d_options):
         lines = f.readlines()
         for line in lines[5:]:  # skip first 5 lines
             line = line.strip("\n").strip(";").strip("\"").strip(" ")
-            print(line)
             landmarks.append(np.fromstring(line, dtype=float, sep=' '))
 
     landmarks = np.asarray(landmarks)
