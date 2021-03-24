@@ -35,7 +35,7 @@ Dinank Gupta, David Kucher, Daniel Manwiller, Ellen Yeats
     ```bash
     python lc2_paired_mrus_brain/register.py -f Case1-US-rs.nii.gz -m Case1-MRI_in_US-rs.nii.gz -lf Case1-US-landmarks-rs.nii.gz -lm Case1-MRI-landmarks-rs.nii.gz -s 70 70 70 --verbose_bobyqa --max_iter 2000
     ```
-5) Extract Landmarks coords from warped moving landmarks (not working)
+5) Extract Landmarks coords from warped moving landmarks
     ```bash
     python landmarks_centre_mass.py --inputnii lc2_paired_mrus_brain/logs_reg/moving_landmarks.nii.gz --movingnii lc2_paired_mrus_brain/logs_reg/warped_moving_landmarks.nii.gz --savetxt lc2_paired_mrus_brain/logs_reg/Case1-results
     ```

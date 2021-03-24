@@ -9,3 +9,9 @@ RESECT
 
 # ignore dataset in demos
 **demos**
+
+# ignore lc2 dev files
+lc2_paired_mrus_brain/Case*
+lc2_paired_mrus_brain/dataset/*
+lc2_paired_mrus_brain/logs_reg/*
+
