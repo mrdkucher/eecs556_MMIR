@@ -1,32 +1,36 @@
-# Classical affine registration via LC2 for MRI and US paired images
+# Classical affine registration via LC2 for MRI and US images
 
-
-TODO: update this for LC2 and BOBYQA
-
-This is a demo that uses the DeepReg[1] package for classical affine image
-registration, which iteratively solves an optimisation problem. Gradient descent is used
-to minimise the image dissimilarity function of a given pair of moving anf fixed images.
-
-## Author
-
-David Kucher
-
-## Application
-
-Aligning pre-operative MRI to intra-operative US images.
-
-## Data
-
-Data is from Xiao et al.[2]: [EASY-RESECT](https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2020.00025).
+This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] framework and a custom similarity metric + optimization algorithm to perform classical affine image registration on a pair of multimodal images. The US image is fixed, while the MRI is deformed (moving image) to optimal alignment.
 
 ## Instruction
-From `DeepReg/` directory, download and preprocess data, then register the images with:
+### Running LC2 Code:
+1) Make sure DeepReg is installed locally:
+    ```bash
+    cd DeepReg
+    pip install -e . --no-cache-dir
+    cd ..
+    ```
+2) Install Py-BOBYQA:
+    ```bash
+    pip install Py-BOBYQA
+    ```
+3) Ensure dataset is prepared as described in parent directory
+4) Run LC2 with:
+    ```bash
+    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose_bobyqa -g --max_iter 2000
+    ```
+5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
+    - Fixed and moving images, labels, and warped moving images and labels.
+    - The affine transformation applied to the moving image to warp it
+    - PNG slices of each volume
 
-```bash
-python demos/lc2_paired_mrus_brain/demo_data.py
-python demos/lc2_paired_mrus_brain/demo_register.py
-```
-
+### Debugging LC2
+1) Run LC2 on phantom images (extruded in 3D)
+    ```bash
+    cd lc2_paired_mrus_brain
+    python register.py -f phantom.nii.gz -m phantom_rot.nii.gz --verbose_bobyqa --max_iter 10000 -s 64 64 21 -g
+    ```
+2) Output is in logs_reg
 
 ## Visualise
 
@@ -49,6 +53,9 @@ visualisation.
 
 
 ## Reference
-[1] Fu et al., (2020). DeepReg: a deep learning toolkit for medical image registration. Journal of Open Source Software, 5(55), 2705, https://doi.org/10.21105/joss.02705
+[1] Fuerst et al., (2014). Automatic ultrasound–MRI registration for neurosurgery using the 2D and 3D LC2 Metric, Med. Im. Anl., Vol. 18, Is. 8, 1312-1319, ISSN 1361-8415, https://doi.org/10.1016/j.media.2014.04.008.
 
-[2] Xiao, Y., Fortin, M., Unsgård, G., Rivaz, H., Reinertsen, I. (2020).EASY-RESECT [Data set]. Norstore. https://doi.org/10.11582/2020.00025
+
+[2] Fu et al., (2020). DeepReg: a deep learning toolkit for medical image registration. Journal of Open Source Software, 5(55), 2705, https://doi.org/10.21105/joss.02705
+
+[3] Xiao, Y., Fortin, M., Unsgård, G., Rivaz, H. and Reinertsen, I. (2017), REtroSpective Evaluation of Cerebral Tumors (RESECT): A clinical database of pre‐operative MRI and intra‐operative ultrasound in low‐grade glioma surgeries. Med. Phys., 44: 3875-3882. https://doi.org/10.1002/mp.12268
