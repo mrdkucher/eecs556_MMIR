@@ -146,16 +146,11 @@ def load_preprocess_image(file_path, normalize=True, fixed=False, resize=True, m
     # resize to arg.image_size
     if args.image_size != [-1, -1, -1] and resize:
         image = layer_util.resize3d(image, args.image_size, method=method)
-        # DAK TODO: verify that resizing the image corresponds to multiplying by
-        # [[s_x,   0,   0],
-        #  [  0, s_y,   0],
-        #  [  0,   0, s_z]]
         scale = orig_shape / np.array(args.image_size)
-        scale_mat = np.diag(scale)
+        # convert to homogeneous coords
         scale = np.concatenate((scale, np.ones(1)))
-        # image_aff = np.diag(scale) @ image_aff
-    else:
-        scale_mat = np.eye(3)
+        # apply scaling to image affine
+        image_aff = image_aff @ np.diag(scale)
 
     if normalize and not args.no_normalize:
         # normalize to [0, 1]
@@ -163,20 +158,18 @@ def load_preprocess_image(file_path, normalize=True, fixed=False, resize=True, m
         if fixed:
             image = image + 1e-10  # add constant so it's not all 0s
 
-    return image, image_aff, scale_mat
+    return image, image_aff
 
 
 # load and preprocess fixed and moving images
-moving_image, moving_image_aff, mov_scale_mat = load_preprocess_image(MOVING_PATH, normalize=True)  # normalized
-fixed_image, fixed_image_aff, fix_scale_mat = load_preprocess_image(FIXED_PATH, fixed=True, normalize=True)  # normalized
+moving_image, moving_image_aff = load_preprocess_image(MOVING_PATH, normalize=True)  # normalized
+fixed_image, fixed_image_aff = load_preprocess_image(FIXED_PATH, fixed=True, normalize=True)  # normalized
 
 if use_landmarks:
     # load and prepreprocess fixed and moving landmarks (images)
-    # Do not resize landmarks -> need integer values 1-15
-    moving_lm_img, moving_lm_img_aff, _ = load_preprocess_image(
-        MOVING_LM_PATH, normalize=False, method='nearest')
-    fixed_lm_img, fixed_lm_img_aff, _ = load_preprocess_image(
-        FIXED_LM_PATH, normalize=False, method='nearest')
+    # resize wth 'nearest' interp: need integer values 1-15
+    moving_lm_img, _ = load_preprocess_image(MOVING_LM_PATH, normalize=False, method='nearest')
+    fixed_lm_img, _ = load_preprocess_image(FIXED_LM_PATH, normalize=False, method='nearest')
     if (np.all(np.unique(moving_lm_img) != np.unique(fixed_lm_img))):
         print("Warning: landmark files don't have same integer-valued landmark spheres after re-sampling")
 if use_tags:
@@ -281,13 +274,12 @@ upper = np.array(
 #   2) Done: a local BOBYQA algorithm on all six(???) rigid transformation parameters (3 rotations + 3 translations?)
 
 obj_fn = build_objective_function(grid_ref, moving_image, fixed_image)
-# soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=0.1,
-#                       print_progress=args.v_bobyqa, maxfun=args.max_iter,
-#                       seek_global_minimum=args.seek_global_minimum)
-# print(soln)
+soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=0.1,
+                      print_progress=args.v_bobyqa, maxfun=args.max_iter,
+                      seek_global_minimum=args.seek_global_minimum)
+print(soln)
 
-# var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
-var_affine = tf.convert_to_tensor(var_affine.reshape((1, 4, 3)), dtype=tf.float32)
+var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
 
 # warp the moving image using the optimized affine transformation
 grid_opt = layer_util.warp_grid(grid_ref, var_affine)
@@ -310,7 +302,7 @@ def calculate_mTRE(xyz_true, xyz_predict):
     assert xyz_true.shape == xyz_predict.shape
     TRE = np.sqrt(np.sum(np.power(xyz_true - xyz_predict, 2), axis=1))
     mTRE = np.mean(TRE)
-    return mTRE, TRE
+    return mTRE
 
 
 def extract_centroid(image):
@@ -349,57 +341,37 @@ def extract_centroid(image):
     return positions
 
 
-# Calculate mTRE
+# Calculate mTRE (in world coords)
 if use_tags:
+    num_lms = moving_landmarks.shape[0]
+    bias = np.ones((num_lms, 1))
+    # Landmark - based:
+    # Landmarks -> [inverse moving_image affine] -> landmarks in pixels -> [affine xform] -> warped landmarks in pixels -> [fixed_image affine] -> warped moving landmarks
     # convert to homogeneous coordinates
-    mov_hlms = np.concatenate((moving_landmarks, np.ones((moving_landmarks.shape[0], 1))), axis=1)
+    mov_hlms = np.concatenate((moving_landmarks, bias), axis=1)
+    # convert to pixel values from world coords
+    mov_hpix = mov_hlms @ np.linalg.inv(moving_image_aff).T
+    # perform transformation
     aff_xform = var_affine.numpy().squeeze()
-    warped_moving_landmarks = mov_hlms @ aff_xform
-    # print("warped moving lms:", warped_moving_landmarks)
-    mTRE, TRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
-    print("mTRE:", mTRE)
+    warped_moving_pixels = mov_hpix @ aff_xform
+    # transform back to world coords
+    warped_moving_pixels_world = np.concatenate((warped_moving_pixels, bias), axis=1) @ fixed_image_aff.T
+    warped_moving_pixels_world = warped_moving_pixels_world[:, :3]
+    mTRE1 = calculate_mTRE(fixed_landmarks, warped_moving_pixels_world)
+    print("landmark mTRE:", mTRE1)
 
-    # # Investigating various approaches for calculating mTRE... none of them match...
-    # # 1.) Landmarks -> [inverse moving_image affine] -> landmarks in pixels -> [affine xform] -> warped landmarks in pixels -> [fixed_image affine] -> warped moving landmarks
-    # # convert to pixel values from world coords
-    # print("world coords:", moving_landmarks)
-    # mov_hpix = mov_hlms @ np.linalg.inv(moving_image_aff).T
-    # print("pixels:", mov_hpix)
-    # warped_moving_pixels = mov_hpix @ aff_xform
-    # warped_moving_pixels_world = np.concatenate((warped_moving_pixels, np.ones((moving_landmarks.shape[0], 1))), axis=1) @ fixed_image_aff.T
-    # warped_moving_pixels_world = warped_moving_pixels_world[:, :3]
-    # print("warped moving pixels:", warped_moving_pixels)
-    # print("warped moving pixels world:", warped_moving_pixels_world)
-    # mTRE1, TRE = calculate_mTRE(fixed_landmarks, warped_moving_pixels_world)
-    # print("mTRE mov lms -> pixels -> xform -> fixed_aff:", mTRE1)
-
-    # # Generally the best match to OG method
-    # # 2.) Landmarks -> [Downscale by image scale] -> downscaled landmarks -> [affine xform] -> warped downscaled landmarks -> [inverse downscale] -> warped moving landmarks
-    # print("moving scale mat: ", mov_scale_mat)
-    # down_moving_landmarks = moving_landmarks @ np.linalg.inv(mov_scale_mat).T
-    # print("downscaled moving lms:", down_moving_landmarks)
-    # warped_down_moving_landmarks = np.concatenate((down_moving_landmarks, np.ones((down_moving_landmarks.shape[0], 1))), axis=1) @ aff_xform
-    # print("warped downscaled moving lms:", warped_down_moving_landmarks)
-    # warped_scaled_moving_landmarks = warped_down_moving_landmarks @ mov_scale_mat.T
-    # print("warped moving lms:", warped_scaled_moving_landmarks)
-    # mTRE2, TRE = calculate_mTRE(fixed_landmarks, warped_scaled_moving_landmarks)
-    # print("mTRE mov lms -> downscale -> xform -> upscale:", mTRE2)
-
-    # # 3.) Landmark spheres -> [affine xform] -> warped landmark spheres -> [extract centroids] -> warped pixel centroids -> [fixed_image affine] -> warped moving landmarks
-    # warped_moving_lm_centroid_pixels = extract_centroid(warped_moving_lm_img)
-    # print("warped_moving_lm_centroid_pixels", warped_moving_lm_centroid_pixels)
-    # warped_moving_lm_centroids = np.concatenate((warped_moving_lm_centroid_pixels, np.ones((down_moving_landmarks.shape[0], 1))), axis=1) @ fixed_image_aff.T
-    # warped_moving_lm_centroids = warped_moving_lm_centroids[:, :3]
-    # print("warped_moving_lm_centroid_lms", warped_moving_lm_centroids)
-    # print("fixed lms:", fixed_landmarks)
-    # mTRE3, TRE = calculate_mTRE(fixed_landmarks, warped_moving_lm_centroids)
-    # print("mTRE warped_moving lms -> calc centroids -> fixed_aff", mTRE3)
-
-    # print("Summary:")
-    # print("mTRE mov lms -> var_affine:", mTRE)
-    # print("mTRE mov lms -> pixels -> xform -> fixed_aff:", mTRE1)
-    # print("mTRE mov lms -> downscale -> xform -> upscale:", mTRE2)
-    # print("mTRE warped_moving lms -> calc centroids -> fixed_aff", mTRE3)
+    # Sphere - based:
+    # Extract warped centroids, extract fixed centroids, convert to world coords
+    warped_moving_lm_centroid_pixels = extract_centroid(warped_moving_lm_img)
+    warped_moving_lm_centroids = np.concatenate((warped_moving_lm_centroid_pixels, bias), axis=1) @ fixed_image_aff.T
+    warped_moving_lm_centroids = warped_moving_lm_centroids[:, :3]
+    fixed_lm_centroid_pixels = extract_centroid(fixed_lm_img)
+    fixed_lm_centroids = np.concatenate((fixed_lm_centroid_pixels, bias), axis=1) @ fixed_image_aff.T
+    fixed_lm_centroids = fixed_lm_centroids[:, :3]
+    # pixel_mTRE = calculate_mTRE(fixed_lm_centroid_pixels, warped_moving_lm_centroid_pixels)
+    # print("pixel mTRE:", pixel_mTRE)
+    mTRE4 = calculate_mTRE(fixed_lm_centroids, warped_moving_lm_centroids)
+    print("sphere mTRE:", mTRE4)
 
 # save output to files
 SAVE_PATH = "logs_reg"
