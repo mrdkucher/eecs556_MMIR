@@ -53,20 +53,13 @@ c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 2 -o Case1
 3) Ensure Dataset is prepared as described above
 4) Run LC2 with:
     ```bash
-    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose_bobyqa -g --max_iter 2000
+    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose-bobyqa -g --max-iter 2000
     ```
 5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
     - Fixed and moving images, labels, and warped moving images and labels.
     - The affine transformation applied to the moving image to warp it
     - PNG slices of each volume
 
-### Debugging LC2
-1) Run LC2 on phantom images (extruded in 3d)
-    ```bash
-    cd lc2_paired_mrus_brain
-    python register.py -f phantom.nii.gz -m phantom_rot.nii.gz --verbose_bobyqa --max_iter 10000 -s 64 64 21 -g
-    ```
-2) Output is in logs_reg
 
 ## c3d utility
 ### Python script for quickly separating the .tag file into a .txt

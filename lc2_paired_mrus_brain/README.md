@@ -17,7 +17,7 @@ This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] fram
 3) Ensure dataset is prepared as described in parent directory
 4) Run LC2 with:
     ```bash
-    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose_bobyqa -g --max_iter 2000
+    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose-bobyqa -g --max-iter 2000
     ```
 5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
     - Fixed and moving images, labels, and warped moving images and labels.

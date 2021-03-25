@@ -39,19 +39,19 @@ parser.add_argument(
     action="store"
 )
 parser.add_argument(
-    "-lf", "--fixed-landmark",
-    help="File path to fixed image landmarks (as spheres in nifti)",
-    dest="fixed_landmark",
+    "-lf", "--fixed-label",
+    help="File path to fixed image labels (as spheres in nifti)",
+    dest="fixed_label",
     action="store"
 )
 parser.add_argument(
-    "-lm", "--moving-landmark",
-    help="File path to moving image landmarks (as spheres in nifti)",
-    dest="moving_landmark",
+    "-lm", "--moving-label",
+    help="File path to moving image labels (as spheres in nifti)",
+    dest="moving_label",
     action="store"
 )
 parser.add_argument(
-    "-s", "--image_size",
+    "-s", "--image-size",
     help="3-entry tuple to resize image e.g. (256, 256, 288)",
     dest="image_size",
     nargs=3,
@@ -60,7 +60,7 @@ parser.add_argument(
     default=[-1, -1, -1]
 )
 parser.add_argument(
-    "--max_iter",
+    "--max-iter",
     help="number of iterations to run",
     dest="max_iter",
     action="store",
@@ -68,7 +68,7 @@ parser.add_argument(
     default=1000
 )
 parser.add_argument(
-    "--verbose_bobyqa",
+    "--verbose-bobyqa",
     help="use verbose output for bobyqa solver",
     dest="v_bobyqa",
     action="store_true",
@@ -98,23 +98,23 @@ os.chdir(PROJECT_DIR)
 
 MOVING_PATH = args.moving
 FIXED_PATH = args.fixed
-MOVING_LM_PATH = args.moving_landmark
-FIXED_LM_PATH = args.fixed_landmark
+MOVING_LABEL_PATH = args.moving_label
+FIXED_LABEL_PATH = args.fixed_label
 TAG_PATH = args.tag
 
-use_landmarks = True
+use_labels = True
 use_tags = True
 # check for images and landmarks
 if not os.path.exists(MOVING_PATH):
     raise FileNotFoundError(f"Moving image not found at: {MOVING_PATH}")
 if not os.path.exists(FIXED_PATH):
     raise FileNotFoundError(f"Fixed image not found at: {FIXED_PATH}")
-if not MOVING_LM_PATH or not os.path.exists(MOVING_LM_PATH):
-    print(f"Moving landmarks not found at: {MOVING_LM_PATH}, not warping landmarks")
-    use_landmarks = False
-if not FIXED_LM_PATH or not os.path.exists(FIXED_LM_PATH):
-    print(f"Fixed landmarks not found at: {FIXED_LM_PATH}, not warping landmarks")
-    use_landmarks = False
+if not MOVING_LABEL_PATH or not os.path.exists(MOVING_LABEL_PATH):
+    print(f"Moving labels not found at: {MOVING_LABEL_PATH}, not warping labels")
+    use_labels = False
+if not FIXED_LABEL_PATH or not os.path.exists(FIXED_LABEL_PATH):
+    print(f"Fixed labels not found at: {FIXED_LABEL_PATH}, not warping labels")
+    use_labels = False
 if not TAG_PATH or not os.path.exists(TAG_PATH):
     print(f"Landmarks not found at: {TAG_PATH}, not calculating mTRE")
     use_tags = False
@@ -123,15 +123,15 @@ if not TAG_PATH or not os.path.exists(TAG_PATH):
 moving_image, moving_image_aff = load_preprocess_image(MOVING_PATH, image_size=args.image_size)
 fixed_image, fixed_image_aff = load_preprocess_image(FIXED_PATH, image_size=args.image_size, fixed=True)
 
-if use_landmarks:
+if use_labels:
     # load and prepreprocess fixed and moving landmarks (images)
     # resize wth 'nearest' interp: need integer values 1-15
-    moving_lm_img, _ = load_preprocess_image(MOVING_LM_PATH, image_size=args.image_size,
-                                             normalize=False, method='nearest')
-    fixed_lm_img, _ = load_preprocess_image(FIXED_LM_PATH, image_size=args.image_size,
+    moving_label, _ = load_preprocess_image(MOVING_LABEL_PATH, image_size=args.image_size,
                                             normalize=False, method='nearest')
-    if (np.all(np.unique(moving_lm_img) != np.unique(fixed_lm_img))):
-        print("Warning: landmark files don't have same integer-valued landmark spheres after re-sampling")
+    fixed_label, _ = load_preprocess_image(FIXED_LABEL_PATH, image_size=args.image_size,
+                                           normalize=False, method='nearest')
+    if (np.all(np.unique(moving_label) != np.unique(fixed_label))):
+        print("Warning: label files don't have same integer-valued label spheres after re-sampling")
 if use_tags:
     # Adapted from landmarks_split_txt:
     # https://gist.github.com/mattiaspaul/56a49fa792ef6f143e56699a06067712
@@ -156,18 +156,19 @@ print("LC2 Config:")
 print("Fixed Image:")
 print("    path:", FIXED_PATH)
 print("    size:", fixed_image.shape)
-print("    landmarks path:", FIXED_LM_PATH)
+print("    label path:", FIXED_LABEL_PATH)
 print("    min:", tf.reduce_min(fixed_image))
 print("    max:", tf.reduce_max(fixed_image))
 print("Moving Image:")
 print("    path:", MOVING_PATH)
 print("    size:", moving_image.shape)
-print("    landmarks path:", MOVING_LM_PATH)
+print("    label path:", MOVING_LABEL_PATH)
 print("    min:", tf.reduce_min(moving_image))
 print("    max:", tf.reduce_max(moving_image))
 print("Tag File:", args.tag)
 print("max iterations:", args.max_iter)
 print("seek global minimum:", args.seek_global_minimum)
+print("output folder:", args.output)
 print()
 
 
@@ -203,18 +204,18 @@ var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
 # warp the moving image using the optimized affine transformation
 grid_opt = layer_util.warp_grid(grid_ref, var_affine)
 warped_moving_image = layer_util.resample(vol=moving_image, loc=grid_opt)
-if use_landmarks:
+if use_labels:
     # # warp the moving landmarks, too
     # warped_moving_lm_img = layer_util.resample(
     #     vol=moving_lm_img, loc=grid_opt)
 
     # use nearest neighbor interpolation so landmarks can be properly extracted later
     grid_ref_np = grid_ref.numpy().reshape((-1, 3))
-    moving_lm_img_np = moving_lm_img.numpy().squeeze().reshape(-1)
+    moving_label_np = moving_label.numpy().squeeze().reshape(-1)
     grid_opt_np = grid_opt.numpy().squeeze().reshape((-1, 3))
-    warped_moving_lm_img = scipy.interpolate.griddata(grid_ref_np, moving_lm_img_np, grid_opt_np, method='nearest')
-    warped_moving_lm_img = warped_moving_lm_img.reshape(moving_lm_img.shape)
-    warped_moving_lm_img = tf.convert_to_tensor(warped_moving_lm_img, dtype=tf.float32)
+    warped_moving_label = scipy.interpolate.griddata(grid_ref_np, moving_label_np, grid_opt_np, method='nearest')
+    warped_moving_label = warped_moving_label.reshape(moving_label.shape)
+    warped_moving_label = tf.convert_to_tensor(warped_moving_label, dtype=tf.float32)
 
 # Calculate mTRE (in world coords)
 if use_tags:
@@ -232,20 +233,21 @@ if use_tags:
     # transform back to world coords
     warped_moving_landmarks = np.concatenate((warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
     warped_moving_landmarks = warped_moving_landmarks[:, :3]
-    mTRE1 = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
-    print("landmark mTRE:", mTRE1)
+    mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
+    print("landmark mTRE:", mTRE)
 
+if use_labels:
     # Sphere - based:
     # Extract warped centroids, extract fixed centroids, convert to world coords
-    warped_moving_lm_centroid_voxels = extract_centroid(warped_moving_lm_img)
-    warped_moving_lm_centroids = np.concatenate((warped_moving_lm_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
-    warped_moving_lm_centroids = warped_moving_lm_centroids[:, :3]
-    fixed_lm_centroid_voxels = extract_centroid(fixed_lm_img)
-    fixed_lm_centroids = np.concatenate((fixed_lm_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
-    fixed_lm_centroids = fixed_lm_centroids[:, :3]
-    voxel_mTRE = calculate_mTRE(fixed_lm_centroid_voxels, fixed_lm_centroid_voxels)
+    warped_moving_label_centroid_voxels = extract_centroid(warped_moving_label)
+    warped_moving_label_centroids = np.concatenate((warped_moving_label_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
+    warped_moving_label_centroids = warped_moving_label_centroids[:, :3]
+    fixed_label_centroid_voxels = extract_centroid(fixed_label)
+    fixed_label_centroids = np.concatenate((fixed_label_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
+    fixed_label_centroids = fixed_label_centroids[:, :3]
+    voxel_mTRE = calculate_mTRE(fixed_label_centroid_voxels, warped_moving_label_centroid_voxels)
     print("voxel mTRE:", voxel_mTRE)
-    mTRE4 = calculate_mTRE(fixed_lm_centroids, warped_moving_lm_centroids)
+    mTRE4 = calculate_mTRE(fixed_label_centroids, warped_moving_label_centroids)
     print("sphere mTRE:", mTRE4)
 
 # save output to files
@@ -279,19 +281,19 @@ for arr, arr_name in zip(arrays, arr_names):
             # label's value is already in [0, 1]
             normalize="image" in arr_name,
         )
-if use_landmarks:
+if use_labels:
     arrays = [
         tf.transpose(a, [1, 2, 3, 0]) if a.ndim == 4 else tf.squeeze(a)
         for a in [
-            moving_lm_img,
-            fixed_lm_img,
-            warped_moving_lm_img,
+            moving_label,
+            fixed_label,
+            warped_moving_label,
         ]
     ]
     arr_names = [
-        "moving_landmarks",
-        "fixed_landmarks",
-        "warped_moving_landmarks",
+        "moving_label",
+        "fixed_label",
+        "warped_moving_label",
     ]
     for arr, arr_name in zip(arrays, arr_names):
         for n in range(arr.shape[-1]):
