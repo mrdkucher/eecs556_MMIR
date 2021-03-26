@@ -14,4 +14,5 @@ RESECT
 lc2_paired_mrus_brain/Case*
 lc2_paired_mrus_brain/dataset/*
 lc2_paired_mrus_brain/logs_reg/*
+lc2_paired_mrus_brain/phantom_reg*
 
