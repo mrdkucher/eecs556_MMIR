@@ -403,8 +403,8 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         #     grad_nbhd = np.expand_dims(grad_nbhd.reshape(-1)[mask], 1)
         #     y_pred_feat = np.concatenate((X, intsty_nbhd, grad_nbhd, np.ones((N, 1))), axis=1)
 
-        # w = pinv(X)*y  --->  y_hat = Xw
-        params = tf.linalg.pinv(y_pred_feat) @ y_true
+        # w = (X^T * X)^-1 * X^T * y  --->  y_hat = Xw
+        params = tf.linalg.inv(tf.transpose(y_pred_feat) @ y_pred_feat) @ tf.transpose(y_pred_feat) @ y_true
         y_true_hat = tf.squeeze(y_pred_feat @ params)
         return y_true_hat
 
