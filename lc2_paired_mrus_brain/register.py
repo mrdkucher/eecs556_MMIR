@@ -199,6 +199,7 @@ soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=0.1,
                       seek_global_minimum=args.seek_global_minimum)
 print(soln)
 
+aff_xform_T = soln.x.reshape((4, 3))
 var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
 
 # warp the moving image using the optimized affine transformation
@@ -228,8 +229,7 @@ if use_tags:
     # convert to pixel values from world coords
     mov_hvox = mov_hlms @ np.linalg.inv(moving_image_aff).T
     # perform transformation
-    aff_xform = var_affine.numpy().squeeze()
-    warped_moving_voxels = mov_hvox @ aff_xform
+    warped_moving_voxels = mov_hvox @ aff_xform_T
     # transform back to world coords
     warped_moving_landmarks = np.concatenate((warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
     warped_moving_landmarks = warped_moving_landmarks[:, :3]
@@ -257,7 +257,7 @@ if os.path.exists(SAVE_PATH):
 os.mkdir(SAVE_PATH)
 
 # Save affine transformation:
-np.savetxt(os.path.join(SAVE_PATH, "affine_T.txt"), aff_xform)
+np.savetxt(os.path.join(SAVE_PATH, "affine_T.txt"), aff_xform_T)
 
 arrays = [
     tf.transpose(a, [1, 2, 3, 0]) if a.ndim == 4 else tf.squeeze(a)
