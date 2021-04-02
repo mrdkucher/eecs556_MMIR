@@ -122,6 +122,7 @@ if not TAG_PATH or not os.path.exists(TAG_PATH):
 # load and preprocess fixed and moving images
 moving_image, moving_image_aff = load_preprocess_image(MOVING_PATH, image_size=args.image_size)
 fixed_image, fixed_image_aff = load_preprocess_image(FIXED_PATH, image_size=args.image_size, fixed=True)
+#^_aff are same for both<whats affine doing?>
 
 if use_labels:
     # load and prepreprocess fixed and moving landmarks (images)
@@ -235,7 +236,7 @@ if use_tags:
     warped_moving_landmarks = warped_moving_landmarks[:, :3]
     mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
     print("landmark mTRE:", mTRE)
-
+'''
 if use_labels:
     # Sphere - based:
     # Extract warped centroids, extract fixed centroids, convert to world coords
@@ -249,7 +250,7 @@ if use_labels:
     print("voxel mTRE:", voxel_mTRE)
     mTRE4 = calculate_mTRE(fixed_label_centroids, warped_moving_label_centroids)
     print("sphere mTRE:", mTRE4)
-
+'''
 # save output to files
 SAVE_PATH = args.output
 if os.path.exists(SAVE_PATH):
