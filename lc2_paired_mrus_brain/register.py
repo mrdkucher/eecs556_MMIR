@@ -103,6 +103,9 @@ def main(args):
     print('max iterations:', args.max_iter)
     print('seek global minimum:', args.seek_global_minimum)
     print('output folder:', args.output)
+    print('Use patch:', args.patch)
+    print('Patch size:', args.patch_size)
+    print('Use neighborhood:', args.neighborhood)
     print()
 
     # affine transformation as trainable weights
@@ -127,7 +130,8 @@ def main(args):
     #   2) Done: a local BOBYQA algorithm on all six(???) rigid transformation parameters (3 rotations + 3 translations?)
     start_time = time.time()
     lc2_loss_config = {'name': 'lc2', 'patch': args.patch, 'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
-    obj_fn = build_objective_function(grid_ref, moving_image, fixed_image)
+    obj_fn = build_objective_function(grid_ref, moving_image, fixed_image,
+                                      image_loss_config=lc2_loss_config)
     soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=0.1,
                           print_progress=args.v_bobyqa, maxfun=args.max_iter,
                           seek_global_minimum=args.seek_global_minimum)

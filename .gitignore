@@ -16,4 +16,4 @@ lc2_paired_mrus_brain/dataset/*
 lc2_paired_mrus_brain/logs_reg/*
 lc2_paired_mrus_brain/phantom_reg*
 lc2_paired_mrus_brain/testing*
-
+**Case*_logs_reg
