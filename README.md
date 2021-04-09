@@ -39,7 +39,8 @@ c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 2 -o Case1
 ```
 
 ## LC2
-### Running LC2 Code:
+### Registering RESECT data with LC2:
+To register some, or all of the RESECT dataset, use regLC2.py. To run the LC2 code on individual cases, or files not in the RESECT dataset, see the README.md file in lc2_paired_mrus_brain.
 1) Make sure DeepReg is installed locally:
     ```bash
     cd DeepReg
@@ -51,13 +52,13 @@ c3d Case1-US-rs.nii.gz -scale 0 -landmarks-to-spheres Case1_lm_us.txt 2 -o Case1
     pip install Py-BOBYQA
     ```
 3) Ensure Dataset is prepared as described above
-4) Run LC2 with:
+4) Run LC2 with: (you may use many of the same options from lc2_paired_mrus_brain/register.py, just not any filenames. Use the --help option for more details)
     ```bash
-    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose-bobyqa -g --max-iter 2000 -o case1_logs_reg
+    python regLC2.py
     ```
-5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
+5) The final text printed out shows mTRE results for each case. Check lc2_paired_mrus_brain/CaseN_logs_reg for:
     - Fixed and moving images, labels, and warped moving images and labels.
-    - The affine transformation applied to the moving image to warp it
+    - mTRE, execution time, and BOBYQA output in reg_results.txt
     - PNG slices of each volume
 
 
