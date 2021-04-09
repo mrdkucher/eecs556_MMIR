@@ -17,7 +17,7 @@ This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] fram
 3) Ensure dataset is prepared as described in parent directory
 4) Run LC2 with:
     ```bash
-    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose-bobyqa -g --max-iter 2000
+    python lc2_paired_mrus_brain/register.py -f RESECT/preprocessed/test/fixed_images/Case1.nii.gz -m RESECT/preprocessed/test/moving_images/Case1.nii.gz -lf RESECT/preprocessed/test/fixed_labels/Case1.nii.gz -lm RESECT/preprocessed/test/moving_labels/Case1.nii.gz -t RESECT/preprocessed/test/landmarks/Case1-MRI-breforeUS.tag -s 70 70 70 --verbose-bobyqa -g --max-iter 2000 -o case1_logs_reg
     ```
 5) The output includes mTRE as text. Check lc2_paired_mrus_brain/logs_reg for:
     - Fixed and moving images, labels, and warped moving images and labels.
@@ -28,7 +28,7 @@ This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] fram
 1) Run LC2 on phantom images (extruded in 3D)
     ```bash
     cd lc2_paired_mrus_brain
-    python register.py -f phantom.nii.gz -m phantom_rot.nii.gz --verbose_bobyqa --max_iter 10000 -s 64 64 21 -g
+    python register.py -f phantom.nii.gz -m phantom_rot.nii.gz --verbose-bobyqa --max-iter 10000 -s 64 64 21 -g -o phantom_reg
     ```
 2) Output is in logs_reg
 
