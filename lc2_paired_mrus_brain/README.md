@@ -2,7 +2,7 @@
 
 This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] framework and a custom similarity metric + optimization algorithm to perform classical affine image registration on a pair of multimodal images. The US image is fixed, while the MRI is deformed (moving image) to optimal alignment.
 
-## Instruction
+## Instructions
 ### Running LC2 Code:
 1) Make sure DeepReg is installed locally:
     ```bash

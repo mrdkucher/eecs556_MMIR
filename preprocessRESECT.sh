@@ -1,3 +1,4 @@
+# Apply all preprocessing to images, then save to directories according to DeepReg train/val/test split
 if [[ ! -e "RESECT/preprocessed" ]]; then
     mkdir RESECT/preprocessed
     mkdir RESECT/preprocessed/train
