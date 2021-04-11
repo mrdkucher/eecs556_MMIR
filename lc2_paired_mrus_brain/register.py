@@ -177,7 +177,9 @@ def main(args):
         warped_moving_landmarks = np.concatenate(
             (warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
         warped_moving_landmarks = warped_moving_landmarks[:, :3]
+        start_mTRE = calculate_mTRE(fixed_landmarks, moving_landmarks)
         mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
+        print('starting mTRE:', start_mTRE)
         print('landmark mTRE:', mTRE)
 
     if use_labels:
@@ -209,6 +211,7 @@ def main(args):
     with open(os.path.join(SAVE_PATH, 'reg_results.txt'), 'w') as f:
         f.write('Finished alignment in {:f} seconds\n'.format(end_time))
         if use_tags:
+            f.write('start landmark mTRE: {:f}\n'.format(mTRE))
             f.write('landmark mTRE: {:f}\n'.format(mTRE))
         if use_labels:
             f.write('voxel mTRE: {:f}\n'.format(voxel_mTRE))

@@ -41,6 +41,8 @@ def main(args, cases):
         options.v_bobyqa = True
         options.seek_global_minimum = args.seek_global_minimum
         options.output = os.path.join("lc2_paired_mrus_brain", case_str + "_logs_reg")
+        if args.postfix:
+            options.output += '_' + args.postfix
         options.patch = args.patch
         options.patch_size = args.patch_size
         options.neighborhood = args.neighborhood
@@ -111,7 +113,7 @@ if __name__ == "__main__":
         dest="max_iter",
         action="store",
         type=int,
-        default=5000
+        default=10000
     )
     parser.add_argument(
         "-g", "--seek_global_minimum",
@@ -119,6 +121,12 @@ if __name__ == "__main__":
         dest="seek_global_minimum",
         action="store_true",
         default=True
+    )
+    parser.add_argument(
+        "--postfix",
+        help="Add a postfix to output directory",
+        dest="postfix",
+        action="store"
     )
     args = parser.parse_args()
     all_cases = [1, 2, 3, 4, 5, 6, 7, 8,
