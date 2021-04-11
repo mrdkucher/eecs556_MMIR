@@ -378,6 +378,10 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
                 shape: (n) or (n, 1)
             :param y_pred: data matrix - MRI intensity & gradient
                 shape: (n, ch)
+            :param y_pred_full: entire MRI data matrix, for use with self.neighborhood
+                shape: (h, w, d, ch)
+            :param mask: binary mask of which values are used for y_pred
+                shape: (n)
 
             :return: estimate of y_true from y_pred
                 shape: (n)
@@ -389,23 +393,38 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         # X = [A B 1] Where A is intensity, B is gradient mag, and 1 is ones
         y_pred_feat = tf.concat([y_pred, tf.ones([N, 1])], 1)
 
-        # if y_pred_full is None:
-        #     y_pred_feat = tf.concat([X, tf.ones([N, 1])], 1)
-        # else:
-        #     # if using the neighborhood, create vectors for the 4 pixels surrounding a pixel + their 4 gradients
-        #     # TODO
+        if self.neighborhood:  # if using the neighborhood, create vectors for the 4 pixels surrounding a pixel + their 4 gradients
+            # Currently, takes average value of intensity and average value of gradient neighborhoods
+            k = tf.constant([[[0, 0, 0],
+                              [0, 1, 0],
+                              [0, 0, 0]],
+                             [[0, 1, 0],
+                              [1, 0, 1],
+                              [0, 1, 0]],
+                             [[0, 0, 0],
+                              [0, 1, 0],
+                              [0, 0, 0]]], dtype=tf.float32) / 6
+            k = tf.reshape(k, (*k.shape, 1, 1))  # reshape to (D, H, W, in_c, out_c)
+            # Perform convolution to obtain neighborhood intensity/gradient values, using symmetric boundary conditions
+            paddings = [[0, 0], [1, 1], [1, 1], [1, 1], [0, 0]]
+            y_pred_full_pad = tf.pad(tf.expand_dims(y_pred_full, axis=0), paddings, "SYMMETRIC")
 
-        #     # Currently, takes average value of intensity and average value of gradient neighborhoods
-        #     k = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]]) / 4
-        #     intsty_nbhd = correlate2d(X_full[:, :, 0], k, mode='same', boundary='symm')
-        #     intsty_nbhd = np.expand_dims(intsty_nbhd.reshape(-1)[mask], 1)
-        #     grad_nbhd = correlate2d(X_full[:, :, 1], k, mode='same', boundary='symm').reshape(-1)
-        #     grad_nbhd = np.expand_dims(grad_nbhd.reshape(-1)[mask], 1)
-        #     y_pred_feat = np.concatenate((X, intsty_nbhd, grad_nbhd, np.ones((N, 1))), axis=1)
+            y_pred_intnsty_pad = tf.expand_dims(y_pred_full_pad[..., 0], axis=-1)
+            y_pred_intnsty_nbhd = tf.nn.conv3d(y_pred_intnsty_pad, k, (1, 1, 1, 1, 1), "VALID")
+            y_pred_intnsty_nbhd = tf.expand_dims(tf.reshape(y_pred_intnsty_nbhd, [-1])[mask], axis=1)
+
+            y_pred_grad_pad = tf.expand_dims(y_pred_full_pad[..., 1], axis=-1)
+            y_pred_grad_nbhd = tf.nn.conv3d(y_pred_grad_pad, k, (1, 1, 1, 1, 1), "VALID")
+            y_pred_grad_nbhd = tf.expand_dims(tf.reshape(y_pred_grad_nbhd, [-1])[mask], axis=1)
+
+            # X = [A B C D 1] Where A is intensity, B is gradient mag,
+            # C is avg nbhd intensity, D is avg nbh gradient mag, and 1 is ones
+            y_pred_feat = tf.concat([y_pred, y_pred_intnsty_nbhd, y_pred_grad_nbhd, tf.ones([N, 1])], axis=1)
 
         # w = (X^T * X)^-1 * X^T * y  --->  y_hat = Xw
         params = tf.linalg.inv(tf.transpose(y_pred_feat) @ y_pred_feat) @ tf.transpose(y_pred_feat) @ y_true
         y_true_hat = tf.squeeze(y_pred_feat @ params)
+
         return y_true_hat
 
     # LC2 Code:
@@ -427,7 +446,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         measure = 0
 
         y_true = tf.reshape(y_true, [-1])
-        # y_pred_orig = y_pred
+        y_pred_orig = y_pred
         y_pred = tf.reshape(y_pred, [-1, y_pred.shape[3]])
 
         num_pixels = y_pred.shape[0]
@@ -440,12 +459,7 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
 
         if var_y_true_vec > 1e-12:  # if variance is nonzero
             if num_nonzero > num_pixels / 2:  # if more than half the pixels aren't zero
-                y_true_hat = self.intensityTransform(y_true_vec, y_pred_vec)
-                # if extend:
-                #     y_true_hat = self.intensityTransform(y_true_vec, y_pred_vec, y_pred_full=y_pred_orig, mask=mask)
-
-                # DAK DEBUG
-                # mse = tf.math.reduce_mean(tf.math.pow(y_true_vec - y_true_hat, 2))
+                y_true_hat = self.intensityTransform(y_true_vec, y_pred_vec, y_pred_full=y_pred_orig, mask=mask)
 
                 _, var_y_diff_vec = tf.nn.moments(y_true_vec - y_true_hat, [0])
                 similarity = 1 - (var_y_diff_vec / var_y_true_vec)
