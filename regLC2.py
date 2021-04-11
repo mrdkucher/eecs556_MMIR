@@ -85,7 +85,7 @@ if __name__ == "__main__":
         nargs=3,
         action="store",
         type=int,
-        default=[70, 70, 50]
+        default=[70, 65, 60]
     )
     parser.add_argument(
         '--no-patch',
