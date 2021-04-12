@@ -50,9 +50,9 @@ def main(args, cases):
         # Perform image registration
         reg(options)
 
-        # Save results:
+        # Save results to array:
         print(os.getcwd())
-        with open(os.path.join("lc2_paired_mrus_brain", case_str + "_logs_reg", "reg_results.txt"), 'r') as f:
+        with open(os.path.join(options.output, "reg_results.txt"), 'r') as f:
             lines = f.readlines()
             mTRE_found = False
             line = 0
