@@ -28,7 +28,7 @@ This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] fram
 1) Run LC2 on phantom images (extruded in 3D)
     ```bash
     cd lc2_paired_mrus_brain
-    python register.py -f phantom.nii.gz -m phantom_aff_noisy.nii.gz --verbose-bobyqa --max-iter 10000 -s 64 64 21 -o phantom_reg
+    python register.py -f phantom.nii.gz -m phantom_aff_noisy.nii.gz --verbose-bobyqa --max-iter 10000 -a -s 64 64 21 -o phantom_reg
     ```
 2) Output is in logs_reg
 

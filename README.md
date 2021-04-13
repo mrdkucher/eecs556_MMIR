@@ -54,7 +54,7 @@ To register some, or all of the RESECT dataset, use regLC2.py. To run the LC2 co
 3) Ensure Dataset is prepared as described above
 4) Run LC2 with: (you may use many of the same options from lc2_paired_mrus_brain/register.py, just not any filenames. Use the --help option for more details)
     ```bash
-    python regLC2.py
+    python regLC2.py -a --max-iter 10000 -p 7
     ```
 5) The final text printed out shows mTRE results for each case. Check lc2_paired_mrus_brain/CaseN_logs_reg for:
     - Fixed and moving images, labels, and warped moving images and labels.
