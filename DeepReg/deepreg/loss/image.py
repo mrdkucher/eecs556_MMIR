@@ -422,7 +422,12 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
             y_pred_feat = tf.concat([y_pred, y_pred_intnsty_nbhd, y_pred_grad_nbhd, tf.ones([N, 1])], axis=1)
 
         # w = (X^T * X)^-1 * X^T * y  --->  y_hat = Xw
-        params = tf.linalg.inv(tf.transpose(y_pred_feat) @ y_pred_feat) @ tf.transpose(y_pred_feat) @ y_true
+        try:
+            params = tf.linalg.inv(tf.transpose(y_pred_feat) @ y_pred_feat) @ tf.transpose(y_pred_feat) @ y_true
+        except tf.python.framework.errors_impl.InvalidArgumentError as e:
+            print(e)
+            print("Problem Matrix:", tf.transpose(y_pred_feat) @ y_pred_feat)
+            params = tf.linalg.pinv(tf.transpose(y_pred_feat) @ y_pred_feat) @ tf.transpose(y_pred_feat) @ y_true
         y_true_hat = tf.squeeze(y_pred_feat @ params)
 
         return y_true_hat
