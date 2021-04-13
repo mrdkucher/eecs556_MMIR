@@ -88,41 +88,82 @@ def extract_centroid(image):
     return positions
 
 
+# Create transformation matrix:
+def create_transformation_mat(weights, transformation_type="affine"):
+    if transformation_type not in ["affine", "rigid", "translate"]:
+        raise NotImplementedError("Transformation: " + str(transformation_type) + " not available.")
+
+    transform = np.eye(4, 3)
+    if transformation_type == "translate":
+        transform[3, :] = weights
+    if transformation_type == "rigid":
+        rx, ry, rz = weights[:3]
+
+        Rx = np.array([[1,          0,           0],  # noqa: E241
+                       [0, np.cos(rx), -np.sin(rx)],
+                       [0, np.sin(rx),  np.cos(rx)]])  # noqa: E201, E241
+        Ry = np.array([[ np.cos(ry), 0, np.sin(ry)],  # noqa: E201, E241
+                       [          0, 1,          0],  # noqa: E201, E241
+                       [-np.sin(ry), 0, np.cos(ry)]])
+        Rz = np.array([[np.cos(rz), -np.sin(rz), 0],
+                       [np.sin(rz),  np.cos(rz), 0],  # noqa: E241
+                       [          0,          0, 1]])  # noqa: E201, E241
+        transform[:3, :] = Rx @ Ry @ Rz
+        transform[3, :] = weights[3:]
+    if transformation_type == "affine":
+        transform = weights.reshape(4, 3)
+    return transform
+
+
 # BOBYQA optimization:
-def build_objective_function(grid, mov, fix, image_loss_config={"name": "lc2"}) -> object:
+def build_objective_function(grid, mov, fix, image_loss_config={"name": "lc2"}, transformation_type="affine") -> object:
     """
     Builder function for the function which BOBYQA optimizes
 
     :param grid: reference grid return from layer_util.get_reference_grid
     :param mov: moving image [1, m_dim1, m_dim2, m_dim3]
     :param fix: fixed image [1, f_dim1, f_dim2, f_dim3]
-    :param image_loss_config: dictionary of config {"name": "lc2"}
+    :param image_loss_config: dictionary of config for loss function {"name": "lc2"}
+    :param transformation_type: str. One of ["affine", "rigid", "translate"].
     :return loss: image dissimilarity
     """
     loss_fn = REGISTRY.build_loss(config=image_loss_config)
+
+    if transformation_type not in ["affine", "rigid", "translate"]:
+        raise NotImplementedError("Transformation: " + str(transformation_type) + " not available.")
 
     def objective_function(weights) -> object:
         """
         Objective function for BOBYQA to minimize:
         Performs affine transformation on mov, defined by weights:
 
-        :param weights: affine transformation, shape [1, 4, 3],
+        :param weights: 1D numpy array
+            transformation types:
+                translate: [t1, t2, t3]
+                rigid: [r1, r2, r3, t1, t2, t3]
+                affine: [a11, a21, a31,
+                         a12, a22, a32],
+                         a13, a23, a33],
+                          t1,  t2,  t3]
+
+            convert to shape [1, 4, 3],
             transpose of normal affine matrix:
             y_pred = [y_true | 1] * weights
             weights = [[a11, a21, a31],
                        [a12, a22, a32],
                        [a13, a23, a33],
-                       [a14, a24, a34]]
-            where a14, a24, and a34 correspond to the bias weights
-            for x, y, and z, accordingly
+                       [ t1,  t2,  t3]]
+            where t1, t2, and t3 correspond to the bias weights
+            (translation) for x, y, and z, accordingly
 
         :return: image dissimilarity measure, to minimize
 
         """
-        weights = tf.convert_to_tensor(
-            weights.reshape((1, 4, 3)), dtype=tf.float32)
+        transform = create_transformation_mat(weights, transformation_type=transformation_type)
+        transform = tf.convert_to_tensor(transform.reshape((1, 4, 3)), dtype=tf.float32)
+
         pred = layer_util.resample(
-            vol=mov, loc=layer_util.warp_grid(grid, weights))
+            vol=mov, loc=layer_util.warp_grid(grid, transform))
         return loss_fn(y_true=fix, y_pred=pred)
 
     return objective_function

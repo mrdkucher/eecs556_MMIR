@@ -8,11 +8,12 @@ import sys
 import time
 import tensorflow as tf
 import pybobyqa
+from scipydirect import minimize
 import numpy as np
 
 import deepreg.model.layer_util as layer_util
 import deepreg.util as util
-from lc2_util import load_preprocess_image, build_objective_function, calculate_mTRE, extract_centroid
+from lc2_util import load_preprocess_image, build_objective_function, calculate_mTRE, extract_centroid, create_transformation_mat
 
 import scipy.interpolate
 
@@ -101,46 +102,84 @@ def main(args):
     print('    max:', tf.reduce_max(moving_image))
     print('Tag File:', args.tag)
     print('max iterations:', args.max_iter)
-    print('seek global minimum:', args.seek_global_minimum)
-    print('output folder:', args.output)
+    print('Perform Affine registration:', args.affine)
+    print('Seek global minimum:', args.seek_global_minimum)
+    print('Output folder:', args.output)
     print('Use patch:', args.patch)
     print('Patch size:', args.patch_size)
     print('Use neighborhood:', args.neighborhood)
     print()
 
-    # affine transformation as trainable weights
-    var_affine = np.array(
-        [1.0, 0.0, 0.0,
-         0.0, 1.0, 0.0,
-         0.0, 0.0, 1.0,
-         0.0, 0.0, 0.0], dtype=np.float32)
-    lower = np.array(
-        [-10.0, -10.0, -10.0,
-         -10.0, -10.0, -10.0,
-         -10.0, -10.0, -10.0,
-         -100.0, -100.0, -100.0], dtype=np.float32)
-    upper = np.array(
-        [10.0, 10.0, 10.0,
-         10.0, 10.0, 10.0,
-         10.0, 10.0, 10.0,
-         100.0, 100.0, 100.0], dtype=np.float32)
-
-    # DAK TODO: 2-step optimization (2018 Team ImFusion)
+    # DAK TODO: 3-step optimization (2018 Team ImFusion) (Only LOCAL optimization)
     #   1) TODO: a global DIRECT (DIviding RECTangles) sub-division method searches on translation only
     #   2) Done: a local BOBYQA algorithm on all six(???) rigid transformation parameters (3 rotations + 3 translations?)
-    start_time = time.time()
-    lc2_loss_config = {'name': 'lc2', 'patch': args.patch, 'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
-    obj_fn = build_objective_function(grid_ref, moving_image, fixed_image,
-                                      image_loss_config=lc2_loss_config)
-    soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower, upper), rhobeg=0.1,
-                          print_progress=args.v_bobyqa, maxfun=args.max_iter,
-                          seek_global_minimum=args.seek_global_minimum)
-    print(soln)
-    end_time = time.time() - start_time
+    #   3) Optional: Full affine search
 
-    aff_xform_T = soln.x.reshape((4, 3))
-    var_affine = tf.convert_to_tensor(
-        soln.x.reshape((1, 4, 3)), dtype=tf.float32)
+    start_time = time.time()
+
+    # Define LC2 Config:
+    lc2_loss_config = {'name': 'lc2', 'patch': args.patch, 'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
+
+    # 1) DIRECT on translation only:
+    print("Performing DIRECT translation optimization")
+    translation_bounds = [(-50, 50), (-50, 50), (-50, 50)]
+    obj_fun = build_objective_function(grid_ref, moving_image, fixed_image,
+                                       image_loss_config=lc2_loss_config,
+                                       transformation_type="translate")
+    direct_res = minimize(obj_fun, translation_bounds)
+    print(direct_res)
+    print("\n")
+    pred_translation = direct_res.x
+
+    # 2) BOBYQA on 6 rigid (Rx, Ry, Rz, Tx, Ty, Tz)
+    print("Performing BOBYQA rigid registration")
+    var_rigid = np.array(
+        [0.0, 0.0, 0.0,
+         0.0, 0.0, 0.0], dtype=np.float32)
+    var_rigid[3:] = pred_translation
+    lower_bound = np.array(
+        [ -2.0,  -2.0,  -2.0,  # noqa: E201, E241
+         -50.0, -50.0, -50.0], dtype=np.float32)  # noqa: E128, E201, E241
+    upper_bound = lower_bound * -1.0
+    lower_bound[3:] += pred_translation
+    upper_bound[3:] += pred_translation
+    obj_fun_rigid = build_objective_function(grid_ref, moving_image, fixed_image,
+                                             image_loss_config=lc2_loss_config,
+                                             transformation_type="rigid")
+    soln_rigid = pybobyqa.solve(obj_fun_rigid, var_rigid, bounds=(lower_bound, upper_bound),
+                                print_progress=args.v_bobyqa, maxfun=args.max_iter,
+                                seek_global_minimum=args.seek_global_minimum)
+    print(soln_rigid)
+    print("\n")
+
+    aff_xform_T = create_transformation_mat(soln_rigid.x, transformation_type="rigid")
+    var_affine = tf.convert_to_tensor(aff_xform_T.reshape((1, 4, 3)), dtype=tf.float32)
+
+    # 3) BOBYQA on 12 affine
+    if args.affine:
+        print("Performing BOBYQA affine registration")
+        # get rigid transformation as affine initializer
+        var_affine = create_transformation_mat(soln_rigid.x).reshape(-1)
+        lower_bound = np.array(
+            [-10.0, -10.0, -10.0,
+             -10.0, -10.0, -10.0,
+             -10.0, -10.0, -10.0,
+             -50.0, -50.0, -50.0], dtype=np.float32)
+        upper_bound = lower_bound * -1.0
+        lower_bound += var_affine
+        upper_bound += var_affine
+        obj_fn = build_objective_function(grid_ref, moving_image, fixed_image,
+                                          image_loss_config=lc2_loss_config)
+        soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower_bound, upper_bound), rhobeg=0.1,
+                              print_progress=args.v_bobyqa, maxfun=args.max_iter,
+                              seek_global_minimum=args.seek_global_minimum)
+        print(soln)
+        print("\n")
+        aff_xform_T = soln.x.reshape((4, 3))
+        var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
+    else:
+        soln = soln_rigid
+    end_time = time.time() - start_time
 
     # warp the moving image using the optimized affine transformation
     grid_opt = layer_util.warp_grid(grid_ref, var_affine)
@@ -211,13 +250,18 @@ def main(args):
     with open(os.path.join(SAVE_PATH, 'reg_results.txt'), 'w') as f:
         f.write('Finished alignment in {:f} seconds\n'.format(end_time))
         if use_tags:
-            f.write('start landmark mTRE: {:f}\n'.format(mTRE))
+            f.write('start landmark mTRE: {:f}\n'.format(start_mTRE))
             f.write('landmark mTRE: {:f}\n'.format(mTRE))
         if use_labels:
             f.write('voxel mTRE: {:f}\n'.format(voxel_mTRE))
             f.write('sphere mTRE: {:f}\n'.format(mTRE4))
         f.write('\n')
-        f.write(str(soln))
+        f.write("Rigid solution:\n")
+        f.write(str(soln_rigid))
+        f.write('\n')
+        if args.affine:
+            f.write("Affine solution:\n")
+            f.write(str(soln))
 
     arrays = [
         tf.transpose(a, [1, 2, 3, 0]) if a.ndim == 4 else tf.squeeze(a)
@@ -350,6 +394,13 @@ if __name__ == '__main__':
         help='enable seek global minimum option for bobyqa solver',
         dest='seek_global_minimum',
         action='store_true',
+        default=False
+    )
+    parser.add_argument(
+        '-a', '--affine',
+        help="Perform optional affine transformation",
+        dest="affine",
+        action="store_true",
         default=False
     )
     parser.add_argument(

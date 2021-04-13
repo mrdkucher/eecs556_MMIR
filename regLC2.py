@@ -39,6 +39,7 @@ def main(args, cases):
         options.image_size = args.image_size
         options.max_iter = args.max_iter
         options.v_bobyqa = True
+        options.affine = args.affine
         options.seek_global_minimum = args.seek_global_minimum
         options.output = os.path.join("lc2_paired_mrus_brain", case_str + "_logs_reg")
         if args.postfix:
@@ -102,6 +103,13 @@ if __name__ == "__main__":
         default=7
     )
     parser.add_argument(
+        '-a', '--affine',
+        help="Perform optional affine transformation",
+        dest="affine",
+        action="store_true",
+        default=False
+    )
+    parser.add_argument(
         '-n', '--neighborhood',
         help='Use neighborhood intensity/gradient for LC2. Default = False',
         dest='neighborhood',
@@ -120,7 +128,7 @@ if __name__ == "__main__":
         help="enable seek global minimum option for bobyqa solver",
         dest="seek_global_minimum",
         action="store_true",
-        default=True
+        default=False
     )
     parser.add_argument(
         "--postfix",

@@ -49,7 +49,7 @@ To register some, or all of the RESECT dataset, use regLC2.py. To run the LC2 co
     ```
 2) Install Py-BOBYQA:
     ```bash
-    pip install Py-BOBYQA
+    pip install Py-BOBYQA scipydirect
     ```
 3) Ensure Dataset is prepared as described above
 4) Run LC2 with: (you may use many of the same options from lc2_paired_mrus_brain/register.py, just not any filenames. Use the --help option for more details)
