@@ -156,13 +156,14 @@ def main(args):
     print("\n")
 
     aff_xform_T = create_transformation_mat(soln_rigid.x, transformation_type="rigid")
+    aff_xform_T_rigid = aff_xform_T  # save for mTRE later
     var_affine = tf.convert_to_tensor(aff_xform_T.reshape((1, 4, 3)), dtype=tf.float32)
 
     # 3) BOBYQA on 12 affine
     if args.affine:
         print("Performing BOBYQA affine registration")
         # get rigid transformation as affine initializer
-        var_affine = create_transformation_mat(soln_rigid.x).reshape(-1)
+        var_affine = aff_xform_T.reshape(-1)
         lower_bound = np.array(
             [-10.0, -10.0, -10.0,
              -10.0, -10.0, -10.0,
@@ -215,13 +216,20 @@ def main(args):
         mov_hvox = mov_hlms @ np.linalg.inv(moving_image_aff).T
         # perform transformation
         warped_moving_voxels = mov_hvox @ aff_xform_T
+        warped_moving_voxels_rigid = mov_hvox @ aff_xform_T_rigid
         # transform back to world coords
         warped_moving_landmarks = np.concatenate(
             (warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
         warped_moving_landmarks = warped_moving_landmarks[:, :3]
+        warped_moving_landmarks_rigid = np.concatenate(
+            (warped_moving_voxels_rigid, bias), axis=1) @ fixed_image_aff.T
+        warped_moving_landmarks_rigid = warped_moving_landmarks_rigid[:, :3]
+
         start_mTRE = calculate_mTRE(fixed_landmarks, moving_landmarks)
+        rigid_mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks_rigid)
         mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
         print('starting mTRE:', start_mTRE)
+        print('landmark mTRE (rigid):', rigid_mTRE)
         print('landmark mTRE:', mTRE)
 
     if use_labels:
@@ -254,7 +262,9 @@ def main(args):
         f.write('Finished alignment in {:f} seconds\n'.format(end_time))
         if use_tags:
             f.write('start landmark mTRE: {:f}\n'.format(start_mTRE))
-            f.write('landmark mTRE: {:f}\n'.format(mTRE))
+            f.write('landmark mTRE (rigid): {:f}\n'.format(rigid_mTRE))
+            if args.affine:
+                f.write('landmark mTRE (affine): {:f}\n'.format(mTRE))
         if use_labels:
             f.write('voxel mTRE: {:f}\n'.format(voxel_mTRE))
             f.write('sphere mTRE: {:f}\n'.format(mTRE4))
