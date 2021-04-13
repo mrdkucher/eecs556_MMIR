@@ -40,6 +40,7 @@ def main(args, cases):
         options.max_iter = args.max_iter
         options.v_bobyqa = True
         options.affine = args.affine
+        options.direct = args.direct
         options.seek_global_minimum = args.seek_global_minimum
         options.output = os.path.join("lc2_paired_mrus_brain", case_str + "_logs_reg")
         if args.postfix:
@@ -106,6 +107,13 @@ if __name__ == "__main__":
         '-a', '--affine',
         help="Perform optional affine transformation",
         dest="affine",
+        action="store_true",
+        default=False
+    )
+    parser.add_argument(
+        '-d', '--direct',
+        help='Perform intial translation registration via DIRECT',
+        dest="direct",
         action="store_true",
         default=False
     )
