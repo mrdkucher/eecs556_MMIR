@@ -1,0 +1,49 @@
+dataset:
+  dir:
+    test: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/test
+    train: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/train
+    valid: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/valid
+  fixed_image_shape:
+  - 151
+  - 136
+  - 119
+  format: nifti
+  labeled: true
+  moving_image_shape:
+  - 151
+  - 136
+  - 119
+  sample_label: all
+  type: paired
+train:
+  backbone:
+    depth: 3
+    extract_levels:
+    - 0
+    - 1
+    - 2
+    - 3
+    name: local
+    num_channel_initial: 16
+  epochs: 4000
+  loss:
+    image:
+      name: gmi
+      weight: 0.5
+    label:
+      name: L2
+      weight: 0.01
+    regularization:
+      name: bending
+      weight: 0.5
+  method: ddf
+  optimizer:
+    learning_rate: 1.0e-05
+    name: Adam
+  patience: 50
+  preprocess:
+    batch_size: 2
+    data_augmentation:
+      name: affine
+    shuffle_buffer_num_batch: 1
+  save_period: 50

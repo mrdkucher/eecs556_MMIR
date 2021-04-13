@@ -6,6 +6,7 @@ Module to train a network using init files and a CLI.
 
 import argparse
 import os
+from typing import Dict, List, Tuple, Union
 
 import tensorflow as tf
 
@@ -17,20 +18,20 @@ from deepreg.util import build_dataset, build_log_dir
 
 
 def build_config(
-    config_path: (str, list),
+    config_path: Union[str, List[str]],
     log_root: str,
     log_dir: str,
     ckpt_path: str,
     max_epochs: int = -1,
-) -> [dict, str]:
+) -> Tuple[Dict, str, str]:
     """
     Function to initialise log directories,
     assert that checkpointed model is the right
     type and to parse the configuration for training.
 
     :param config_path: list of str, path to config file
-    :param log_root: root of logs
-    :param log_dir: path to where training logs to be stored.
+    :param log_root: path of the log directory
+    :param log_dir: name of the experiment
     :param ckpt_path: path where model is stored.
     :param max_epochs: if max_epochs > 0, use it to overwrite the configuration
     :return: - config: a dictionary saving configuration
@@ -63,7 +64,7 @@ def build_config(
 
 def train(
     gpu: str,
-    config_path: (str, list),
+    config_path: Union[str, List[str]],
     gpu_allow_growth: bool,
     ckpt_path: str,
     log_dir: str = "",
@@ -73,13 +74,13 @@ def train(
     """
     Function to train a model.
 
-    :param gpu: which local gpu to use to train
-    :param config_path: path to configuration set up
-    :param gpu_allow_growth: whether to allocate whole GPU memory for training
-    :param ckpt_path: where to store training checkpoints
-    :param log_root: root of logs
-    :param log_dir: where to store logs in training
-    :param max_epochs: if max_epochs > 0, will use it to overwrite the configuration
+    :param gpu: which local gpu to use to train.
+    :param config_path: path to configuration set up.
+    :param gpu_allow_growth: whether to allocate whole GPU memory for training.
+    :param ckpt_path: where to store training checkpoints.
+    :param log_root: path of the log directory.
+    :param log_dir: experiment name.
+    :param max_epochs: if max_epochs > 0, will use it to overwrite the configuration.
     """
     # set env variables
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -121,7 +122,7 @@ def train(
     else:
         strategy = tf.distribute.get_strategy()
     with strategy.scope():
-        model = REGISTRY.build_model(
+        model: tf.keras.Model = REGISTRY.build_model(
             config=dict(
                 name=config["train"]["method"],
                 moving_image_size=data_loader_train.moving_image_shape,
@@ -137,6 +138,7 @@ def train(
 
     # compile
     model.compile(optimizer=optimizer)
+    #model.plot_model(output_dir=log_dir)
 
     # build callbacks
     tensorboard_callback = tf.keras.callbacks.TensorBoard(
@@ -149,13 +151,17 @@ def train(
         save_period=config["train"]["save_period"],
         ckpt_path=ckpt_path,
     )
-    callbacks = [tensorboard_callback, ckpt_callback]
-
+    # Added by DMANWILL
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor="val_loss/label_L2_Distance", 
+                                                  patience=config["train"]["patience"], 
+                                                  restore_best_weights=True)
+    callbacks = [early_stop, tensorboard_callback, ckpt_callback]
+    
     # train
     # it's necessary to define the steps_per_epoch
     # and validation_steps to prevent errors like
     # BaseCollectiveExecutor::StartAbort Out of range: End of sequence
-    model.fit(
+    history = model.fit(
         x=dataset_train,
         steps_per_epoch=steps_per_epoch_train,
         initial_epoch=initial_epoch,
@@ -169,13 +175,16 @@ def train(
     data_loader_train.close()
     if data_loader_val is not None:
         data_loader_val.close()
+    
+    # Added by DMANWILL
+    return history
 
 
 def main(args=None):
     """
     Entry point for train script.
 
-    :param args:
+    :param args: arguments
     """
 
     parser = argparse.ArgumentParser()
