@@ -1,0 +1,2 @@
+# Command to run on the command line
+deepreg_predict --gpu "0" --ckpt_path logs/logs_train/20210410-162243/20210410-162243/save/ckpt-94 --mode test --exp_name 94_final_test

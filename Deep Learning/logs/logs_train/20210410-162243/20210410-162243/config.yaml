@@ -4,19 +4,20 @@ dataset:
     train: /home/dmanwill/MMIR/paired_mr_us_brain/train
     test: /home/dmanwill/MMIR/paired_mr_us_brain/valid
   fixed_image_shape:
-  - 256
-  - 256
-  - 256
+  - 151
+  - 136
+  - 119
   format: nifti
   labeled: true
   moving_image_shape:
-  - 256
-  - 256
-  - 256
+  - 151
+  - 136
+  - 119
   sample_label: all
   type: paired
 train:
   backbone:
+    depth: 3
     extract_levels:
     - 0
     - 1
