@@ -103,15 +103,20 @@ def reg(args):
     print('Registration mode (BOBYQA):', args.reg_mode)
     print('Seek global minimum:', args.seek_global_minimum)
     print('Output folder:', args.output)
-    print('Use patch:', args.patch)
-    print('Patch size:', args.patch_size)
-    print('Use neighborhood:', args.neighborhood)
-    print()
+    print('Similarity measure:', args.similarity)
+    if args.similarity == 'lc2':
+        print("Using LC2 similarity measure")
+        print('Use patch:', args.patch)
+        print('Patch size:', args.patch_size)
+        print('Use neighborhood:', args.neighborhood)
 
     start_time = time.time()
     # Define LC2 Config:
-    lc2_loss_config = {'name': 'lc2', 'patch': args.patch,
+    if args.similarity == 'lc2':
+        loss_config = {'name': 'lc2', 'patch': args.patch,
                        'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
+    else:
+        loss_config = {'name': args.similarity}
 
     # 1) DIRECT on translation only:
     pred_translation = np.zeros(3, dtype=np.float32)
@@ -119,7 +124,7 @@ def reg(args):
         print('Performing DIRECT translation optimization')
         translation_bounds = [(-50, 50), (-50, 50), (-50, 50)]
         obj_fun = build_objective_function(grid_ref, moving_image, fixed_image,
-                                           image_loss_config=lc2_loss_config,
+                                           image_loss_config=loss_config,
                                            transformation_type='translate')
         # use Jones modification
         direct_res = minimize(obj_fun, translation_bounds,
@@ -142,7 +147,7 @@ def reg(args):
         lower_bound[3:] += pred_translation
         upper_bound[3:] += pred_translation
         obj_fun_rigid = build_objective_function(grid_ref, moving_image, fixed_image,
-                                                 image_loss_config=lc2_loss_config,
+                                                 image_loss_config=loss_config,
                                                  transformation_type='rigid')
         soln_rigid = pybobyqa.solve(obj_fun_rigid, var_rigid, bounds=(lower_bound, upper_bound),
                                     print_progress=args.v_bobyqa, maxfun=args.max_iter, rhobeg=1.0,  # coarse
@@ -174,7 +179,7 @@ def reg(args):
         lower_bound += var_affine
         upper_bound += var_affine
         obj_fn = build_objective_function(grid_ref, moving_image, fixed_image,
-                                          image_loss_config=lc2_loss_config)
+                                          image_loss_config=loss_config)
         soln = pybobyqa.solve(obj_fn, var_affine, bounds=(lower_bound, upper_bound), rhobeg=0.1,  # fine
                               print_progress=args.v_bobyqa, maxfun=args.max_iter,
                               seek_global_minimum=args.seek_global_minimum)
@@ -321,6 +326,14 @@ if __name__ == '__main__':
         action='store',
         type=int,
         default=[-1, -1, -1]
+    )
+    parser.add_argument(
+        '--similarity',
+        help='Which similarity measure to use. Default == lc2',
+        dest='similarity',
+        choices=['lc2', 'gmi', 'lncc', 'ssd'],
+        action='store',
+        default='lc2'
     )
     parser.add_argument(
         '--no-patch',
