@@ -1,18 +1,18 @@
 dataset:
   dir:
-    test: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/test
-    train: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/train
-    valid: /home/dmanwill/MMIR/eecs556_MMIR/RESECT/preprocessed/valid
+    test: /home/<path>/eecs556_MMIR/RESECT/preprocessed/test
+    train: /home/<path>/eecs556_MMIR/RESECT/preprocessed/train
+    valid: /home/<path>/eecs556_MMIR/RESECT/preprocessed/valid
   fixed_image_shape:
-  - 151
-  - 136
-  - 119
+  - 128
+  - 128
+  - 128
   format: nifti
   labeled: true
   moving_image_shape:
-  - 151
-  - 136
-  - 119
+  - 128
+  - 128
+  - 128
   sample_label: all
   type: paired
 train:
@@ -29,10 +29,10 @@ train:
   loss:
     image:
       name: gmi
-      weight: 0.5
+      weight: 0.0
     label:
       name: L2
-      weight: 0.01
+      weight: 0.1
     regularization:
       name: bending
       weight: 0.5
