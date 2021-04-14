@@ -37,15 +37,14 @@ def main(args):
                             runtimes[p, s] = float(line.split(' ')[-2])
                         if "landmark mTRE (rigid)" in line:
                             mTREs[p, 2 * s] = float(line.strip('\n').split(' ')[-1])
-                        if "landmark mTRE (affine)" in line:
+                        if "landmark mTRE (affine)" in line or "landmark mTRE:" in line:
                             mTREs[p, 2 * s + 1] = float(line.strip('\n').split(' ')[-1])
 
     # Save info as CSVs:
-    # args.output
-    with open(args.output + '.csv', 'w') as f:
+    with open(args.output + '_mTRE.csv', 'w') as f:
         writer = csv.writer(f)
         pretty_prefixes = [p.strip('_') for p in prefixes]
-        pretty_suffixes = sorted([s.strip('_') for s in suffixes])
+        pretty_suffixes = [s.strip('_') for s in suffixes]
         pretty_suffixes_double = []
         for ps in pretty_suffixes:
             pretty_suffixes_double.append(ps + '_rigid')
@@ -55,6 +54,15 @@ def main(args):
         writer.writerow(['Case #', *pretty_suffixes_double])
         for p, prefix in enumerate(pretty_prefixes):
             writer.writerow([prefix, *mTREs[p, :]])
+    with open(args.output + '_runtimes.csv', 'w') as f:
+        writer = csv.writer(f)
+        pretty_prefixes = [p.strip('_') for p in prefixes]
+        pretty_suffixes = sorted([s.strip('_') for s in suffixes])
+
+        # Write headings
+        writer.writerow(['Case #', *pretty_suffixes])
+        for p, prefix in enumerate(pretty_prefixes):
+            writer.writerow([prefix, *runtimes[p, :]])
 
 
 if __name__ == "__main__":
