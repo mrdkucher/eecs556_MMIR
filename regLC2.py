@@ -4,7 +4,7 @@ import os
 
 import sys
 sys.path.append("lc2_paired_mrus_brain")
-from register import main as reg  # noqa: E402
+from register import reg  # noqa: E402
 
 
 def main(args, cases):
@@ -39,30 +39,36 @@ def main(args, cases):
         options.image_size = args.image_size
         options.max_iter = args.max_iter
         options.v_bobyqa = True
-        options.affine = args.affine
+        options.reg_mode = args.reg_mode
         options.direct = args.direct
         options.seek_global_minimum = args.seek_global_minimum
         options.output = os.path.join("lc2_paired_mrus_brain", case_str + "_logs_reg")
-        if args.postfix:
-            options.output += '_' + args.postfix
+        if args.suffix:
+            options.output += '_' + args.suffix
+        options.similarity = args.similarity
         options.patch = args.patch
         options.patch_size = args.patch_size
         options.neighborhood = args.neighborhood
 
         # Perform image registration
+        print("Starting", case_str)
         reg(options)
 
         # Save results to array:
-        print(os.getcwd())
         with open(os.path.join(options.output, "reg_results.txt"), 'r') as f:
             lines = f.readlines()
             mTRE_found = False
             line = 0
+            rigid_mTRE = 0.0
             while not mTRE_found and line < len(lines):
-                if "landmark mTRE" in lines[line]:
+                if "landmark mTRE (rigid)" in lines[line]:
+                    rigid_mTRE = float(lines[line].strip('\n').split(' ')[-1])
+                if "landmark mTRE (affine)" in lines[line]:
                     mTRE_found = True
                     mTREs.append(float(lines[line].strip('\n').split(' ')[-1]))
                 line += 1
+            if not mTRE_found:
+                mTREs.append(rigid_mTRE)  # use rigid mTRE only if necessary
 
     print("Results:")
     for (c, m) in zip(cases, mTREs):
@@ -90,6 +96,14 @@ if __name__ == "__main__":
         default=[70, 65, 60]
     )
     parser.add_argument(
+        '--similarity',
+        help='Which similarity measure to use. Default == lc2',
+        dest='similarity',
+        choices=['lc2', 'gmi', 'lncc', 'ssd'],
+        action='store',
+        default='lc2'
+    )
+    parser.add_argument(
         '--no-patch',
         help='Use patch-based LC2',
         dest='patch',
@@ -104,11 +118,12 @@ if __name__ == "__main__":
         default=7
     )
     parser.add_argument(
-        '-a', '--affine',
-        help="Perform optional affine transformation",
-        dest="affine",
-        action="store_true",
-        default=False
+        '-r', '--registration-mode',
+        help="Registration mode",
+        dest="reg_mode",
+        action="store",
+        choices=['rigid', 'affine', 'both'],
+        default='affine'
     )
     parser.add_argument(
         '-d', '--direct',
@@ -139,9 +154,9 @@ if __name__ == "__main__":
         default=False
     )
     parser.add_argument(
-        "--postfix",
-        help="Add a postfix to output directory",
-        dest="postfix",
+        "--suffix",
+        help="Add a suffix to output directory",
+        dest="suffix",
         action="store"
     )
     args = parser.parse_args()

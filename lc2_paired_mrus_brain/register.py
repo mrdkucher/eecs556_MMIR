@@ -12,15 +12,12 @@ from scipydirect import minimize
 import numpy as np
 
 import deepreg.model.layer_util as layer_util
-import deepreg.util as util
-from lc2_util import load_preprocess_image, build_objective_function, calculate_mTRE, extract_centroid, create_transformation_mat
-
-import scipy.interpolate
-
+from lc2_util import (load_preprocess_image, build_objective_function, warp_landmarks, labels2world_coords,
+                      calculate_mTRE, create_transformation_mat, save_image, warp_image)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # no info, warnings printed
 
 
-def main(args):
+def reg(args):
     MAIN_PATH = os.getcwd()
     PROJECT_DIR = os.path.dirname(sys.argv[0])
     if PROJECT_DIR == '':
@@ -103,7 +100,7 @@ def main(args):
     print('Tag File:', args.tag)
     print('max iterations:', args.max_iter)
     print('Perform translation registration (DIRECT):', args.direct)
-    print('Perform affine registration (BOBYQA):', args.affine)
+    print('Registration mode (BOBYQA):', args.reg_mode)
     print('Seek global minimum:', args.seek_global_minimum)
     print('Output folder:', args.output)
     print('Use patch:', args.patch)
@@ -111,59 +108,63 @@ def main(args):
     print('Use neighborhood:', args.neighborhood)
     print()
 
-    # DAK TODO: 3-step optimization (2018 Team ImFusion) (Only LOCAL optimization)
-    #   1) TODO: a global DIRECT (DIviding RECTangles) sub-division method searches on translation only
-    #   2) Done: a local BOBYQA algorithm on all six(???) rigid transformation parameters (3 rotations + 3 translations?)
-    #   3) Optional: Full affine search
-
     start_time = time.time()
-
     # Define LC2 Config:
-    lc2_loss_config = {'name': 'lc2', 'patch': args.patch, 'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
+    lc2_loss_config = {'name': 'lc2', 'patch': args.patch,
+                       'patch_size': args.patch_size, 'neighborhood': args.neighborhood}
 
     # 1) DIRECT on translation only:
     pred_translation = np.zeros(3, dtype=np.float32)
     if args.direct:
-        print("Performing DIRECT translation optimization")
+        print('Performing DIRECT translation optimization')
         translation_bounds = [(-50, 50), (-50, 50), (-50, 50)]
         obj_fun = build_objective_function(grid_ref, moving_image, fixed_image,
                                            image_loss_config=lc2_loss_config,
-                                           transformation_type="translate")
-        direct_res = minimize(obj_fun, translation_bounds, algmethod=1, maxf=args.max_iter)  # use Jones modification
+                                           transformation_type='translate')
+        # use Jones modification
+        direct_res = minimize(obj_fun, translation_bounds,
+                              algmethod=1, maxf=args.max_iter)
         print(direct_res)
-        print("\n")
+        print('\n')
         pred_translation = direct_res.x
 
     # 2) BOBYQA on 6 rigid (Rx, Ry, Rz, Tx, Ty, Tz)
-    print("Performing BOBYQA rigid registration")
-    var_rigid = np.array(
-        [0.0, 0.0, 0.0,
-         0.0, 0.0, 0.0], dtype=np.float32)
-    var_rigid[3:] = pred_translation
-    lower_bound = np.array(
-        [ -2.0,  -2.0,  -2.0,  # noqa: E201, E241
-         -50.0, -50.0, -50.0], dtype=np.float32)  # noqa: E128, E201, E241
-    upper_bound = lower_bound * -1.0
-    lower_bound[3:] += pred_translation
-    upper_bound[3:] += pred_translation
-    obj_fun_rigid = build_objective_function(grid_ref, moving_image, fixed_image,
-                                             image_loss_config=lc2_loss_config,
-                                             transformation_type="rigid")
-    soln_rigid = pybobyqa.solve(obj_fun_rigid, var_rigid, bounds=(lower_bound, upper_bound),
-                                print_progress=args.v_bobyqa, maxfun=args.max_iter, rhobeg=1.0,  # coarse
-                                seek_global_minimum=args.seek_global_minimum)
-    print(soln_rigid)
-    print("\n")
-
-    aff_xform_T = create_transformation_mat(soln_rigid.x, transformation_type="rigid")
-    aff_xform_T_rigid = aff_xform_T  # save for mTRE later
-    var_affine = tf.convert_to_tensor(aff_xform_T.reshape((1, 4, 3)), dtype=tf.float32)
+    if args.reg_mode in ['rigid', 'both']:
+        print('Performing BOBYQA rigid registration')
+        var_rigid = np.array(
+            [0.0, 0.0, 0.0,
+             0.0, 0.0, 0.0], dtype=np.float32)
+        var_rigid[3:] = pred_translation
+        lower_bound = np.array(
+            [-2.0,  -2.0,  -2.0,  # noqa: E201, E241
+             -50.0, -50.0, -50.0], dtype=np.float32)  # noqa: E128, E201, E241
+        upper_bound = lower_bound * -1.0
+        lower_bound[3:] += pred_translation
+        upper_bound[3:] += pred_translation
+        obj_fun_rigid = build_objective_function(grid_ref, moving_image, fixed_image,
+                                                 image_loss_config=lc2_loss_config,
+                                                 transformation_type='rigid')
+        soln_rigid = pybobyqa.solve(obj_fun_rigid, var_rigid, bounds=(lower_bound, upper_bound),
+                                    print_progress=args.v_bobyqa, maxfun=args.max_iter, rhobeg=1.0,  # coarse
+                                    seek_global_minimum=args.seek_global_minimum)
+        print(soln_rigid)
+        rigid_xform_T = create_transformation_mat(
+            soln_rigid.x, transformation_type='rigid')
+        var_rigid = tf.convert_to_tensor(
+            rigid_xform_T.reshape((1, 4, 3)), dtype=tf.float32)
+        warped_moving_image_rigid = warp_image(
+            moving_image, grid_ref, var_rigid)
+        if use_labels:
+            warped_moving_label_rigid = warp_image(
+                moving_label, grid_ref, var_rigid, method='nearest')
+    else:  # must be doing affine registration, set initialization as identity
+        rigid_xform_T = np.eye(4, 3, dtype=np.float32)
 
     # 3) BOBYQA on 12 affine
-    if args.affine:
-        print("Performing BOBYQA affine registration")
+    if args.reg_mode in ['affine', 'both']:
+        print('Performing BOBYQA affine registration')
         # get rigid transformation as affine initializer
-        var_affine = aff_xform_T.reshape(-1)
+        var_affine = rigid_xform_T.reshape(-1)
         lower_bound = np.array(
             [-10.0, -10.0, -10.0,
              -10.0, -10.0, -10.0,
@@ -178,149 +179,103 @@ def main(args):
                               print_progress=args.v_bobyqa, maxfun=args.max_iter,
                               seek_global_minimum=args.seek_global_minimum)
         print(soln)
-        print("\n")
         aff_xform_T = soln.x.reshape((4, 3))
-        var_affine = tf.convert_to_tensor(soln.x.reshape((1, 4, 3)), dtype=tf.float32)
-    else:
-        soln = soln_rigid
+        var_affine = tf.convert_to_tensor(
+            soln.x.reshape((1, 4, 3)), dtype=tf.float32)
+        warped_moving_image_affine = warp_image(
+            moving_image, grid_ref, var_affine)
+        if use_labels:
+            warped_moving_label_affine = warp_image(
+                moving_label, grid_ref, var_affine, method='nearest')
+
     end_time = time.time() - start_time
-
-    # warp the moving image using the optimized affine transformation
-    grid_opt = layer_util.warp_grid(grid_ref, var_affine)
-    warped_moving_image = layer_util.resample(vol=moving_image, loc=grid_opt)
-    if use_labels:
-        # # warp the moving landmarks, too
-        # warped_moving_lm_img = layer_util.resample(
-        #     vol=moving_lm_img, loc=grid_opt)
-
-        # use nearest neighbor interpolation so landmarks can be properly extracted later
-        grid_ref_np = grid_ref.numpy().reshape((-1, 3))
-        moving_label_np = moving_label.numpy().squeeze().reshape(-1)
-        grid_opt_np = grid_opt.numpy().squeeze().reshape((-1, 3))
-        warped_moving_label = scipy.interpolate.griddata(
-            grid_ref_np, moving_label_np, grid_opt_np, method='nearest')
-        warped_moving_label = warped_moving_label.reshape(moving_label.shape)
-        warped_moving_label = tf.convert_to_tensor(
-            warped_moving_label, dtype=tf.float32)
 
     # Calculate mTRE (in world coords)
     if use_tags:
-        num_lms = moving_landmarks.shape[0]
-        bias = np.ones((num_lms, 1))
-        # Landmark - based:
-        # Landmarks -> [inverse moving_image affine] -> landmarks in voxels -> [affine xform] ->
-        # warped landmarks in voxels -> [fixed_image affine] -> warped moving landmarks
-        # convert to homogeneous coordinates
-        mov_hlms = np.concatenate((moving_landmarks, bias), axis=1)
-        # convert to pixel values from world coords
-        mov_hvox = mov_hlms @ np.linalg.inv(moving_image_aff).T
-        # perform transformation
-        warped_moving_voxels = mov_hvox @ aff_xform_T
-        warped_moving_voxels_rigid = mov_hvox @ aff_xform_T_rigid
-        # transform back to world coords
-        warped_moving_landmarks = np.concatenate(
-            (warped_moving_voxels, bias), axis=1) @ fixed_image_aff.T
-        warped_moving_landmarks = warped_moving_landmarks[:, :3]
-        warped_moving_landmarks_rigid = np.concatenate(
-            (warped_moving_voxels_rigid, bias), axis=1) @ fixed_image_aff.T
-        warped_moving_landmarks_rigid = warped_moving_landmarks_rigid[:, :3]
-
         start_mTRE = calculate_mTRE(fixed_landmarks, moving_landmarks)
-        rigid_mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks_rigid)
-        mTRE = calculate_mTRE(fixed_landmarks, warped_moving_landmarks)
         print('starting mTRE:', start_mTRE)
-        print('landmark mTRE (rigid):', rigid_mTRE)
-        print('landmark mTRE:', mTRE)
+        if args.reg_mode in ['rigid', 'both']:
+            warped_moving_landmarks_rigid = warp_landmarks(
+                moving_landmarks, moving_image_aff, rigid_xform_T, fixed_image_aff)
+            rigid_mTRE = calculate_mTRE(
+                fixed_landmarks, warped_moving_landmarks_rigid)
+            print('landmark mTRE (rigid):', rigid_mTRE)
+        if args.reg_mode in ['affine', 'both']:
+            warped_moving_landmarks = warp_landmarks(
+                moving_landmarks, moving_image_aff, aff_xform_T, fixed_image_aff)
+            affine_mTRE = calculate_mTRE(
+                fixed_landmarks, warped_moving_landmarks)
+            print('landmark mTRE (affine):', affine_mTRE)
 
     if use_labels:
-        # Sphere - based:
-        # Extract warped centroids, extract fixed centroids, convert to world coords
-        warped_moving_label_centroid_voxels = extract_centroid(
-            warped_moving_label)
-        warped_moving_label_centroids = np.concatenate(
-            (warped_moving_label_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
-        warped_moving_label_centroids = warped_moving_label_centroids[:, :3]
-        fixed_label_centroid_voxels = extract_centroid(fixed_label)
-        fixed_label_centroids = np.concatenate(
-            (fixed_label_centroid_voxels, bias), axis=1) @ fixed_image_aff.T
-        fixed_label_centroids = fixed_label_centroids[:, :3]
-        voxel_mTRE = calculate_mTRE(
-            fixed_label_centroid_voxels, warped_moving_label_centroid_voxels)
-        print('voxel mTRE:', voxel_mTRE)
-        mTRE4 = calculate_mTRE(fixed_label_centroids,
-                               warped_moving_label_centroids)
-        print('sphere mTRE:', mTRE4)
+        if args.reg_mode in ['rigid', 'both']:
+            moving_world, warped_moving_rigid_world, fixed_world = labels2world_coords(
+                moving_label, warped_moving_label_rigid, fixed_label, fixed_image_aff)
+            start_sphere_mTRE = calculate_mTRE(fixed_world, moving_world)
+            rigid_sphere_mTRE = calculate_mTRE(fixed_world, warped_moving_rigid_world)
+            print('sphere mTRE (rigid):', rigid_sphere_mTRE)
+        if args.reg_mode in ['affine', 'both']:
+            moving_world, warped_moving_affine_world, fixed_world = labels2world_coords(
+                moving_label, warped_moving_label_affine, fixed_label, fixed_image_aff)
+            start_sphere_mTRE = calculate_mTRE(fixed_world, moving_world)
+            affine_sphere_mTRE = calculate_mTRE(fixed_world, warped_moving_affine_world)
+            print('sphere mTRE (affine):', rigid_sphere_mTRE)
 
     # save output to files
-    SAVE_PATH = args.output
-    if os.path.exists(SAVE_PATH):
-        shutil.rmtree(SAVE_PATH)
-    os.mkdir(SAVE_PATH)
+    if os.path.exists(args.output):
+        shutil.rmtree(args.output)
+    os.mkdir(args.output)
 
     # Save registration results
-    with open(os.path.join(SAVE_PATH, 'reg_results.txt'), 'w') as f:
+    with open(os.path.join(args.output, 'reg_results.txt'), 'w') as f:
         f.write('Finished alignment in {:f} seconds\n'.format(end_time))
+        # Print landmark mTRE
         if use_tags:
             f.write('start landmark mTRE: {:f}\n'.format(start_mTRE))
-            f.write('landmark mTRE (rigid): {:f}\n'.format(rigid_mTRE))
-            if args.affine:
-                f.write('landmark mTRE (affine): {:f}\n'.format(mTRE))
+            if args.reg_mode in ['rigid', 'both']:
+                f.write('landmark mTRE (rigid): {:f}\n'.format(rigid_mTRE))
+            if args.reg_mode in ['affine', 'both']:
+                f.write('landmark mTRE (affine): {:f}\n'.format(affine_mTRE))
+        # Print label mTRE
         if use_labels:
-            f.write('voxel mTRE: {:f}\n'.format(voxel_mTRE))
-            f.write('sphere mTRE: {:f}\n'.format(mTRE4))
+            f.write('start sphere mTRE: {:f}\n'.format(start_sphere_mTRE))
+            if args.reg_mode in ['rigid', 'both']:
+                f.write('sphere mTRE (rigid): {:f}\n'.format(rigid_sphere_mTRE))
+            if args.reg_mode in ['affine', 'both']:
+                f.write('sphere mTRE (affine): {:f}\n'.format(affine_sphere_mTRE))
         f.write('\n')
-        f.write("Rigid solution:\n")
-        f.write(str(soln_rigid))
-        f.write('\n')
-        if args.affine:
-            f.write("Affine solution:\n")
+        # Write BOBYQA Solution
+        if args.reg_mode in ['rigid', 'both']:
+            f.write('Rigid solution:\n')
+            f.write(str(soln_rigid))
+            f.write('\n')
+        if args.reg_mode in ['affine', 'both']:
+            f.write('Affine solution:\n')
             f.write(str(soln))
 
-    arrays = [
-        tf.transpose(a, [1, 2, 3, 0]) if a.ndim == 4 else tf.squeeze(a)
-        for a in [
-            moving_image,
-            fixed_image,
-            warped_moving_image,
-        ]
-    ]
-    arr_names = [
-        'moving_image',
-        'fixed_image',
-        'warped_moving_image',
-    ]
-    for arr, arr_name in zip(arrays, arr_names):
-        for n in range(arr.shape[-1]):
-            util.save_array(
-                save_dir=SAVE_PATH,
-                arr=arr[..., n],
-                name=arr_name + (arr.shape[-1] > 1) * '_{}'.format(n),
-                # label's value is already in [0, 1]
-                normalize='image' in arr_name,
-            )
+    # Save images
+    images = [moving_image, fixed_image]
+    names = ['moving_image', 'fixed_image']
+    if args.reg_mode in ['rigid', 'both']:
+        images.append(warped_moving_image_rigid)
+        names.append('warped_moving_image_rigid')
+    if args.reg_mode in ['affine', 'both']:
+        images.append(warped_moving_image_affine)
+        names.append('warped_moving_image_affine')
     if use_labels:
-        arrays = [
-            tf.transpose(a, [1, 2, 3, 0]) if a.ndim == 4 else tf.squeeze(a)
-            for a in [
-                moving_label,
-                fixed_label,
-                warped_moving_label,
-            ]
-        ]
-        arr_names = [
-            'moving_label',
-            'fixed_label',
-            'warped_moving_label',
-        ]
-        for arr, arr_name in zip(arrays, arr_names):
-            for n in range(arr.shape[-1]):
-                util.save_array(
-                    save_dir=SAVE_PATH,
-                    arr=arr[..., n],
-                    name=arr_name + (arr.shape[-1] > 1) * '_{}'.format(n),
-                    # label's value is already in [0, 1]
-                    normalize='image' in arr_name,
-                )
+        images.append(moving_label)
+        images.append(fixed_label)
+        names.append('moving_label')
+        names.append('fixed_label')
+        if args.reg_mode in ['rigid', 'both']:
+            images.append(warped_moving_label_rigid)
+            names.append('warped_moving_label_rigid')
+        if args.reg_mode in ['affine', 'both']:
+            images.append(warped_moving_label_affine)
+            names.append('warped_moving_label_affine')
+    for (image, name) in zip(images, names):
+        save_image(image, name, args.output)
+    print('\n')
     os.chdir(MAIN_PATH)
 
 
@@ -410,17 +365,18 @@ if __name__ == '__main__':
         default=False
     )
     parser.add_argument(
-        '-a', '--affine',
-        help="Perform optional affine transformation",
-        dest="affine",
-        action="store_true",
-        default=False
+        '-r', '--registration-mode',
+        help='Registration mode',
+        dest='reg_mode',
+        action='store',
+        choices=['rigid', 'affine', 'both'],
+        default='affine'
     )
     parser.add_argument(
         '-d', '--direct',
         help='Perform intial translation registration via DIRECT',
-        dest="direct",
-        action="store_true",
+        dest='direct',
+        action='store_true',
         default=False
     )
     parser.add_argument(
@@ -431,4 +387,4 @@ if __name__ == '__main__':
         default='logs_reg'
     )
     args = parser.parse_args()
-    main(args)
+    reg(args)
