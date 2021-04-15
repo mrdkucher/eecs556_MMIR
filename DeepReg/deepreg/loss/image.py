@@ -551,8 +551,8 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
             similarity = tf.reduce_sum(lc2_result[:, 2]) / tf.reduce_sum(lc2_result[:, 1])
             similarity = tf.expand_dims(similarity, axis=0)
         else:
-            lc2_result = self.lc2Similarity(y_true, y_pred_cat)
-            similarity = lc2_result[:, 0]  # (batch,)
+            lc2_result = self.lc2Similarity(tf.squeeze(y_true), tf.squeeze(y_pred_cat))
+            similarity = lc2_result[0]  # (batch,)
         return similarity
 
     def get_config(self) -> dict:

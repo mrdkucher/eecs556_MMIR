@@ -57,7 +57,7 @@ def main(args):
     with open(args.output + '_runtimes.csv', 'w') as f:
         writer = csv.writer(f)
         pretty_prefixes = [p.strip('_') for p in prefixes]
-        pretty_suffixes = sorted([s.strip('_') for s in suffixes])
+        pretty_suffixes = [s.strip('_') for s in suffixes]
 
         # Write headings
         writer.writerow(['Case #', *pretty_suffixes])
