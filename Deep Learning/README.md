@@ -5,7 +5,7 @@ Run the code in the Model Training python notebook. This uses all the parameters
 Run the following DeepReg command from the Deep Learning directory
 
 ```
-bash deepreg_predict --gpu "0" --ckpt_path logs/logs_train/20210413-172130/20210413-172130/save/ckpt-91 --mode test --exp_name 91_final_test
+deepreg_predict --gpu "0" --ckpt_path logs/logs_train/20210413-172130/20210413-172130/save/ckpt-91 --mode test --exp_name 91_final_test
 ```
 
 ## mTRE Calculation:
