@@ -64,7 +64,7 @@ To register some, or all of the RESECT dataset, use regLC2.py. To run the LC2 co
 
 ## Deep Learning
 ### Model Training
-Run the code in the Model Training python notebook. This uses all the parameters set in the paired_mrus_brain.yaml configuration file to load in the specified data, build a model with the specified parameters, and train the model with a callback on the L2 validation loss.
+Run the code in the Model Training python notebook in the Deep Learning directory. This uses all the parameters set in the paired_mrus_brain.yaml configuration file to load in the specified data, build a model with the specified parameters, and train the model with a callback on the L2 validation loss.
 
 ### Model Prediction
 Run the following DeepReg command from the Deep Learning directory
@@ -74,7 +74,7 @@ deepreg_predict --gpu "0" --ckpt_path logs/logs_train/20210413-172130/20210413-1
 ```
 
 ### mTRE Calculation:
-Run the code in the mTRE Calculations python notebook. This uses the prediction results from DeepReg and recalculates the mTRE to account for the transformation from image coordinates to real-world coordinates, and to account for the resampling / scaling done during the data preprocessing. The mTRE results are printed out in the mTRE Calcuations notebook.
+Run the code in the mTRE Calculations python notebook in the Deep Learning directory. This uses the prediction results from DeepReg and recalculates the mTRE to account for the transformation from image coordinates to real-world coordinates, and to account for the resampling / scaling done during the data preprocessing. The mTRE results are printed out in the mTRE Calcuations notebook.
 
 
 ## c3d utility
