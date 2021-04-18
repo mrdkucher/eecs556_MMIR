@@ -53,7 +53,7 @@ def reg(args):
     moving_image, moving_image_aff = load_preprocess_image(
         MOVING_PATH, image_size=args.image_size)
     fixed_image, fixed_image_aff = load_preprocess_image(
-        FIXED_PATH, image_size=args.image_size)
+        FIXED_PATH, image_size=args.image_size, fixed=True)
 
     if use_labels:
         # load and prepreprocess fixed and moving landmarks (images)
