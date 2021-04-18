@@ -538,17 +538,15 @@ class LinearCorrelationOfLinearCombination(tf.keras.losses.Loss):
         if self.patch:
             sizes = [1, self.patch_size, self.patch_size, self.patch_size, 1]
             strides = [1, 1, 1, 1, 1]
-            padding = 'VALID'
+            padding = 'SAME'  # zero pads. LC2 doesn't consider 0 values, so no artifacts.
             y_true_patches = tf.extract_volume_patches(y_true, sizes, strides, padding)
             y_pred_patches = tf.extract_volume_patches(y_pred_cat, sizes, strides, padding)
-            y_true_patches = tf.reshape(y_true_patches, [-1, sizes[1], sizes[2], sizes[3]])
-            y_pred_patches = tf.reshape(y_pred_patches, [-1, sizes[1], sizes[2], sizes[3], 2])
 
             # patches come interlaced by channel: image mag, grad mag, etc.
-            num_patches = y_true_patches.shape[0]
+            num_patches = y_true_patches.shape[4]
             lc2_result = tf.zeros([num_patches, 3])  # create array for return values
-            for i, patch in enumerate(tf.unstack(y_true_patches, axis=0)):
-                lc2_res_i = self.lc2Similarity(y_true_patches[i, :, :, :], y_pred_patches[i, :, :, :, :])
+            for i, patch in enumerate(tf.unstack(y_true_patches, axis=4)):
+                lc2_res_i = self.lc2Similarity(y_true_patches[0, :, :, :, i], y_pred_patches[0, :, :, :, 2 * i:(2 * i) + 2])
                 lc2_result = tf.tensor_scatter_nd_update(lc2_result, [[i]], [lc2_res_i])
             similarity = tf.reduce_sum(lc2_result[:, 2]) / tf.reduce_sum(lc2_result[:, 1])
             similarity = tf.expand_dims(similarity, axis=0)
