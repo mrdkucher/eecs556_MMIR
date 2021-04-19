@@ -104,23 +104,3 @@ Running c3d with that command will create a new .nii.gz with voxel spheres repre
    ```bash
    python landmarks_centre_mass.py --inputnii Case1-MRI-landmarks.nii.gz --movingnii Case1-MRI-deformed_landmarks.nii.gz --savetxt Case1-results
    ```
-
-### Git Steps:
-Setup:
-- `git clone https://github.com/mrdkucher/eecs556_MMIR.git`
-
-Making changes:
-- Add all changes to be committed: `git add .` or `git add <filename 1> <filename 2> ... <filename N>`
-- Commit local changes to your local repo with message: `git commit -m "<commit message>"`
-- Rebase any changes from remote: `git pull --rebase origin master`
-  - If there are merge conflicts, resolve them by keeping whatever code should stay in
-  - continue rebase by running: `git add .` and `git rebase --continue`
-  - at end of rebase, you'll be prompted to update the commit message, which you can leave alone.
-- Push local changes to remote branch: `git push -u origin master`, or just `git push` after you've done the former command once.
-
-In summary:
-- Make changes
-- `git add .`
-- `git commit -m "<message>"`
-- `git pull --rebase origin master`
-- `git push`
