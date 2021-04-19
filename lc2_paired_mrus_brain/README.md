@@ -34,22 +34,16 @@ This is a walkthrough of how to use our LC2[1] approach uses the DeepReg[2] fram
 
 ## Visualise
 
-The following command can be executed to generate a plot of three image slices from the
-the moving image, warped image and fixed image (left to right) to visualise the
-registration. Please see the visualisation tool docs
-[here](https://github.com/DeepRegNet/DeepReg/blob/main/docs/source/docs/visualisation_tool.md)
-for more visualisation options such as animated gifs.
+One can use DeepReg's visualization utility to view registration results.
+Run `deepreg_vis` in the root directory of this repo after installing DeepReg, with the following options:
+- "-m 2" to tile images
+- "-i 'path_to_moving_image, path_to_warped_moving_image, path_to_fixed_image'" to show image
+- "--slice-inds '4,8,12'" to show slices 4, 8, and 12
 
-TODO: visualization command
-
-[comment]: # (```bash)
-[comment]: # (deepreg_vi -m 2 -i 'demos/lc2_paired_mrus_brain/logs_reg/Case1.nii.gz, demos/classical_ct_headneck_affine/logs_reg/warped_moving_image.nii.gz, demos/classical_ct_headneck_affine/logs_reg/fixed_image.nii.gz' --slice-inds '4,8,12' -s demos/classical_ct_headneck_affine/logs_reg)
-[comment]: # (```)
-
-Note: The registration script must be run before running the command to generate the
-visualisation.
-
-![plot](../assets/classical_ct_headneck_affine.png)
+In summary, we can visualize results from lc2 via:
+```bash
+deepreg_vis -m 2 -i 'lc2_paired_mrus_brain/Case2_logs_reg_patch3_neighbor/moving_image.nii.gz, lc2_paired_mrus_brain/Case2_logs_reg_patch3_neighbor/warped_moving_image_affine.nii.gz, lc2_paired_mrus_brain/Case2_logs_reg_patch3_neighbor/fixed_image.nii.gz' --slice-inds '30,42,50'
+```
 
 
 ## Reference
