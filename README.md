@@ -115,6 +115,8 @@ Output .txt file will be a list of affine and deformable parameters, followed by
 <run time for deformable registration [s]>
 <run time for affine registration [s]>
 
+The registered .nii.gz images for each case are saved in their respective directories under the user's local RESECT folder.
+
 ## c3d utility
 ### Python script for quickly separating the .tag file into a .txt
 
