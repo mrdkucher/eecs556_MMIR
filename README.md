@@ -108,7 +108,7 @@ sh regDefSSC.sh
 ```
 
 Output .txt file will be a list of affine and deformable parameters, followed by case-by-case registration results as:
-<Case Number?
+<Case Number>
 <initial mTRE>
 <deformable-only mTRE [voxels]>
 <deformable+affine mTRE [voxels]>
