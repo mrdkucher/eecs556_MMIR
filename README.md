@@ -76,6 +76,44 @@ deepreg_predict --gpu "0" --ckpt_path logs/logs_train/20210413-172130/20210413-1
 ### mTRE Calculation:
 Run the code in the mTRE Calculations python notebook in the Deep Learning directory. This uses the prediction results from DeepReg and recalculates the mTRE to account for the transformation from image coordinates to real-world coordinates, and to account for the resampling / scaling done during the data preprocessing. The mTRE results are printed out in the mTRE Calcuations notebook.
 
+## Register with SSC
+1) Download the c3d executable from http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.C3D
+2) Download the original RESECT data from https://archive.norstore.no (search for “RESECT”)
+
+Edit the bash scripts regSSC.sh and regDefSSC.sh with the local paths to the c3d executable, RESECT data, and github branch, the desired parameters for affine and deformable SSC-based registration algorithms, and the output file name.
+
+Then, for affine-only, affine+deformable, affine+deformable+affine registration:
+
+run 
+
+```
+sh regSSC.sh
+```
+
+Output .txt file will be a list of affine and deformable parameters, followed by case-by-case registration results as:
+<Case Number>
+<initial mTRE>
+<affine-only mTRE [voxels]>
+<affine+deformable mTRE [voxels]>
+<affine+deformable+affine mTRE [voxels]>
+<run time for first affine registration [s]>
+<run time for deformable registration [s]>
+<run time for second affine registration [s]>
+
+For deformable-only and deformable+affine registration:
+
+run 
+```
+sh regDefSSC.sh
+```
+
+Output .txt file will be a list of affine and deformable parameters, followed by case-by-case registration results as:
+<Case Number?
+<initial mTRE>
+<deformable-only mTRE [voxels]>
+<deformable+affine mTRE [voxels]>
+<run time for deformable registration [s]>
+<run time for affine registration [s]>
 
 ## c3d utility
 ### Python script for quickly separating the .tag file into a .txt
